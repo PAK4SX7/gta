@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NEON CITY</title>
+<style>
+  :root{
+    --neon:#00e5ff;
+    --neon2:#ff2e97;
+    --bg:#05060a;
+    --panel:rgba(10,12,20,0.85);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg);overflow:hidden;
+    font-family:'Segoe UI',Arial,sans-serif; color:#fff;}
+  canvas{display:block;}
+
+  /* ---------- ROTATE WARNING ---------- */
+  #rotateWarning{
+    position:fixed; inset:0; background:#000; z-index:9999;
+    display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center;
+  }
+  #rotateWarning.show{display:flex;}
+  .phone{
+    width:70px;height:110px;border:4px solid var(--neon);border-radius:10px;margin-bottom:24px;
+    animation:rotatePhone 1.6s ease-in-out infinite;
+  }
+  @keyframes rotatePhone{
+    0%{transform:rotate(0deg);} 50%{transform:rotate(90deg);} 100%{transform:rotate(0deg);}
+  }
+  #rotateWarning h2{color:var(--neon); letter-spacing:2px; margin:0 0 10px;}
+  #rotateWarning p{color:#aaa; max-width:300px; margin:0;}
+
+  /* ---------- SCREENS ---------- */
+  .screen{position:fixed; inset:0; display:none; z-index:10;}
+  .screen.active{display:block;}
+
+  /* MENU */
+  #menuScreen{
+    background:radial-gradient(ellipse at center, #131826 0%, #05060a 80%);
+  }
+  #menuCanvas{position:absolute; inset:0; z-index:1;}
+  .menuTop{
+    position:absolute; top:20px; left:0; right:0; display:flex; justify-content:center; z-index:5;
+  }
+  .titleWrap{ text-align:center; }
+  .titleWrap h1{
+    font-size:42px; margin:0; letter-spacing:6px;
+    color:#fff; text-shadow:0 0 12px var(--neon), 0 0 30px var(--neon2);
+  }
+  .titleWrap span{color:var(--neon2);}
+  .nameBox{
+    position:absolute; top:100px; left:50%; transform:translateX(-50%); z-index:5;
+    background:var(--panel); border:1px solid var(--neon); border-radius:10px; padding:14px 20px;
+    display:flex; flex-direction:column; align-items:center; gap:8px; min-width:260px;
+    backdrop-filter:blur(6px);
+  }
+  .nameBox label{font-size:11px; letter-spacing:2px; color:#8fe9ff;}
+  .nameBox input{
+    background:#0c0f18; border:1px solid #2a3550; color:#fff; padding:10px 14px; border-radius:6px;
+    font-size:16px; text-align:center; width:220px; outline:none;
+  }
+  .nameBox input:focus{border-color:var(--neon);}
+  #nameError{color:var(--neon2); font-size:12px; height:14px;}
+
+  .menuBottom{
+    position:absolute; bottom:26px; left:0; right:0; display:flex; flex-direction:column;
+    align-items:center; gap:12px; z-index:5;
+  }
+  .onlineTag{
+    font-size:13px; color:#9fb3d9; letter-spacing:1px; background:var(--panel);
+    padding:6px 14px; border-radius:20px; border:1px solid #23304a;
+  }
+  .onlineTag .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;margin-right:6px;}
+  .btnRow{display:flex; gap:16px;}
+  .bigBtn{
+    padding:16px 34px; font-size:15px; letter-spacing:2px; font-weight:bold; color:#fff;
+    background:linear-gradient(135deg, #ff2e97, #7b2cff); border:none; border-radius:10px; cursor:pointer;
+    box-shadow:0 0 20px rgba(255,46,151,0.5);
+  }
+  .bigBtn.secondary{
+    background:linear-gradient(135deg, #00e5ff, #0075ff); box-shadow:0 0 20px rgba(0,229,255,0.4);
+  }
+  .bigBtn:active{transform:scale(0.96);}
+
+  /* WARDROBE */
+  #wardrobeScreen{ background:linear-gradient(180deg,#0a0e18,#05060a); }
+  .wardrobeLayout{position:absolute; inset:0; display:flex;}
+  #wardrobeCanvas{flex:1; position:relative;}
+  .wardrobePanel{
+    width:300px; background:var(--panel); border-left:1px solid #23304a; padding:16px;
+    overflow-y:auto; backdrop-filter:blur(6px);
+  }
+  .wardrobePanel h2{font-size:16px; letter-spacing:2px; color:var(--neon); margin:0 0 14px;}
+  .catGroup{margin-bottom:16px;}
+  .catGroup h3{font-size:11px; letter-spacing:1.5px; color:#8fa0c8; margin:0 0 8px;}
+  .swatchRow{display:flex; flex-wrap:wrap; gap:8px;}
+  .swatch{
+    width:38px;height:38px;border-radius:8px;border:2px solid transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;
+    background:#1a2236;
+  }
+  .swatch.active{border-color:var(--neon); box-shadow:0 0 10px var(--neon);}
+  .colorSwatch{width:28px;height:28px;border-radius:50%;}
+  .backBtn{
+    position:absolute; top:16px; left:16px; z-index:6; padding:10px 18px; border-radius:8px;
+    background:var(--panel); border:1px solid #23304a; color:#fff; cursor:pointer; font-size:13px;
+  }
+  .saveBtn{
+    width:100%; margin-top:6px; padding:12px; border-radius:8px; border:none; cursor:pointer;
+    background:linear-gradient(135deg,#00e5ff,#0075ff); color:#fff; font-weight:bold; letter-spacing:1px;
+  }
+
+  /* LOADING */
+  #loadingScreen{
+    background:#05060a; display:none; align-items:center; justify-content:center; flex-direction:column;
+  }
+  #loadingScreen.active{display:flex;}
+  .loadTitle{font-size:22px; letter-spacing:4px; color:var(--neon); margin-bottom:24px;}
+  .barOuter{width:320px; height:14px; border:1px solid #2a3550; border-radius:8px; overflow:hidden; background:#0c0f18;}
+  .barInner{height:100%; width:0%; background:linear-gradient(90deg,#ff2e97,#00e5ff); transition:width .25s;}
+  .loadMsg{margin-top:14px; font-size:13px; color:#9fb3d9; letter-spacing:1px;}
+
+  /* GAME / HUD */
+  #gameScreen{background:#87ceeb;}
+  #gameCanvas{position:absolute; inset:0;}
+  #hud{position:fixed; inset:0; pointer-events:none; z-index:20; display:none;}
+  #hud.active{display:block;}
+
+  .hudTopLeft{position:absolute; top:14px; left:14px; display:flex; flex-direction:column; gap:6px;}
+  .hpBarOuter{width:200px; height:18px; background:#1a0f14; border:1px solid #402030; border-radius:6px; overflow:hidden;}
+  .hpBarInner{height:100%; width:100%; background:linear-gradient(90deg,#ff3b3b,#ff8a3b); transition:width .2s;}
+  .staminaOuter{width:200px; height:8px; background:#0f1a20; border:1px solid #204040; border-radius:4px; overflow:hidden;}
+  .staminaInner{height:100%; width:100%; background:linear-gradient(90deg,#00e5ff,#00ffb3); transition:width .1s;}
+  .hudName{font-size:13px; letter-spacing:1px; color:#fff; text-shadow:0 0 6px #000;}
+
+  .hudTopRight{position:absolute; top:14px; right:14px; text-align:right; font-size:12px; color:#cfe3ff;}
+  .hudTopRight div{background:rgba(0,0,0,0.35); padding:4px 10px; border-radius:6px; margin-bottom:4px;}
+
+  .hudCenterMsg{
+    position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); text-align:center;
+    display:none;
+  }
+  .hudCenterMsg.show{display:block;}
+  .hudCenterMsg h1{font-size:34px; letter-spacing:3px; color:#ff3b3b; text-shadow:0 0 20px #ff3b3b;}
+  .hudCenterMsg p{color:#ccc; margin-top:6px;}
+
+  .connState{
+    position:absolute; top:60px; left:50%; transform:translateX(-50%); font-size:12px;
+    padding:5px 14px; border-radius:14px; background:rgba(0,0,0,0.5); letter-spacing:1px;
+  }
+
+  /* MOBILE CONTROLS */
+  #mobileControls{position:absolute; inset:0; display:none; pointer-events:none;}
+  #mobileControls.active{display:block;}
+  .joyZone{position:absolute; left:0; bottom:0; width:45%; height:60%; pointer-events:auto;}
+  .joyBase{
+    position:absolute; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,0.08);
+    border:2px solid rgba(255,255,255,0.25); display:none;
+  }
+  .joyStick{
+    position:absolute; width:50px; height:50px; border-radius:50%; background:rgba(0,229,255,0.6);
+    top:30px; left:30px;
+  }
+  .camZone{position:absolute; right:0; bottom:0; width:55%; height:60%; pointer-events:auto;}
+  .actionBtns{
+    position:absolute; right:16px; bottom:16px; display:flex; flex-direction:column; gap:10px;
+    pointer-events:auto; align-items:flex-end;
+  }
+  .actRow{display:flex; gap:10px;}
+  .actBtn{
+    width:64px; height:64px; border-radius:50%; background:rgba(20,25,40,0.7); border:2px solid var(--neon);
+    color:#fff; font-size:11px; letter-spacing:0.5px; display:flex; align-items:center; justify-content:center;
+    text-align:center;
+  }
+  .actBtn:active{background:rgba(0,229,255,0.4);}
+  .actBtn.punch{border-color:var(--neon2);}
+  .vehicleBtns{position:absolute; left:16px; bottom:16px; display:none; flex-direction:column; gap:10px; pointer-events:auto;}
+  .vehicleBtns.active{display:flex;}
+
+  /* DESKTOP HINT */
+  #desktopHint{
+    position:absolute; bottom:14px; left:14px; font-size:11px; color:#8fa0c8; background:rgba(0,0,0,0.35);
+    padding:8px 12px; border-radius:8px; line-height:1.5; display:none;
+  }
+
+  #loadOverlayError{color:#ff6666; font-size:12px; margin-top:10px; display:none;}
+</style>
+</head>
+<body>
+
+<!-- ROTATE WARNING -->
+<div id="rotateWarning">
+  <div class="phone"></div>
+  <h2>GIRA TU DISPOSITIVO</h2>
+  <p>Este juego requiere jugar en horizontal.</p>
+</div>
+
+<!-- MENU SCREEN -->
+<div id="menuScreen" class="screen active">
+  <canvas id="menuCanvas"></canvas>
+  <div class="menuTop">
+    <div class="titleWrap">
+      <h1>NEON <span>CITY</span></h1>
+    </div>
+  </div>
+  <div class="nameBox">
+    <label>NOMBRE DEL JUGADOR</label>
+    <input id="playerNameInput" maxlength="16" placeholder="Escribe tu nombre">
+    <div id="nameError"></div>
+  </div>
+  <div class="menuBottom">
+    <div class="onlineTag"><span class="dot"></span><span id="onlineCount">--</span> JUGADORES EN LÍNEA</div>
+    <div class="btnRow">
+      <button class="bigBtn secondary" id="btnWardrobe">VESTIDOR</button>
+      <button class="bigBtn" id="btnPlay">JUGAR MUNDO</button>
+    </div>
+  </div>
+</div>
+
+<!-- WARDROBE SCREEN -->
+<div id="wardrobeScreen" class="screen">
+  <button class="backBtn" id="btnBackFromWardrobe">← VOLVER</button>
+  <div class="wardrobeLayout">
+    <div id="wardrobeCanvas"></div>
+    <div class="wardrobePanel">
+      <h2>VESTIDOR</h2>
+      <div class="catGroup"><h3>PELO</h3><div class="swatchRow" id="opt_hair"></div></div>
+      <div class="catGroup"><h3>CAMISETA</h3><div class="swatchRow" id="opt_shirt"></div></div>
+      <div class="catGroup"><h3>CHAQUETA</h3><div class="swatchRow" id="opt_jacket"></div></div>
+      <div class="catGroup"><h3>PANTALÓN</h3><div class="swatchRow" id="opt_pants"></div></div>
+      <div class="catGroup"><h3>ZAPATOS</h3><div class="swatchRow" id="opt_shoes"></div></div>
+      <div class="catGroup"><h3>GORRO</h3><div class="swatchRow" id="opt_hat"></div></div>
+      <div class="catGroup"><h3>ACCESORIO</h3><div class="swatchRow" id="opt_accessory"></div></div>
+      <div class="catGroup"><h3>COLOR DE PIEL</h3><div class="swatchRow" id="opt_skin"></div></div>
+      <button class="saveBtn" id="btnSaveWardrobe">GUARDAR APARIENCIA</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen" class="screen">
+  <div class="loadTitle">CARGANDO MUNDO...</div>
+  <div class="barOuter"><div class="barInner" id="loadBar"></div></div>
+  <div class="loadMsg" id="loadMsg">Preparando ciudad...</div>
+  <div id="loadOverlayError"></div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen">
+  <div id="gameCanvas"></div>
+
+  <div id="hud">
+    <div class="connState" id="connState">CONECTANDO...</div>
+    <div class="hudTopLeft">
+      <div class="hudName" id="hudName">Jugador</div>
+      <div class="hpBarOuter"><div class="hpBarInner" id="hpBar"></div></div>
+      <div class="staminaOuter"><div class="staminaInner" id="staminaBar"></div></div>
+    </div>
+    <div class="hudTopRight">
+      <div id="onlineHud">JUGADORES EN LÍNEA: --</div>
+      <div id="pingHud">PING: -- ms</div>
+    </div>
+    <div class="hudCenterMsg" id="deathMsg">
+      <h1>HAS SIDO DERROTADO</h1>
+      <p>Reapareciendo...</p>
+    </div>
+
+    <div id="desktopHint">
+      WASD mover · SHIFT correr · SPACE saltar · C agacharse · E entrar/salir vehículo<br>
+      F interactuar · CLICK golpear · MOUSE cámara · ESC menú
+    </div>
+
+    <div id="mobileControls">
+      <div class="joyZone" id="joyZone">
+        <div class="joyBase" id="joyBase"><div class="joyStick" id="joyStick"></div></div>
+      </div>
+      <div class="camZone" id="camZone"></div>
+      <div class="actionBtns" id="footActions">
+        <div class="actRow">
+          <div class="actBtn" id="btnRun">CORRER</div>
+          <div class="actBtn" id="btnJump">SALTAR</div>
+        </div>
+        <div class="actRow">
+          <div class="actBtn" id="btnInteract">USAR</div>
+          <div class="actBtn punch" id="btnPunch">PUÑO</div>
+        </div>
+        <div class="actRow">
+          <div class="actBtn" id="btnCrouch">AGACHAR</div>
+        </div>
+      </div>
+      <div class="vehicleBtns" id="vehicleActions">
+        <div class="actBtn" id="btnExitVehicle">SALIR</div>
+        <div class="actBtn" id="btnBrake">FRENO</div>
+        <div class="actBtn" id="btnGas">GAS</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- THREE.JS CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/* =====================================================================
+   NEON CITY - CLIENTE COMPLETO
+   Todo el juego vive en este archivo: menú, vestidor, mundo 3D, HUD,
+   controles, animación, personaje, vehículos, NPCs y conexión WebSocket.
+   ===================================================================== */
+
+// ---------------------------------------------------------------------
+// CONFIGURACIÓN DEL SERVIDOR (cambia esto tras desplegar el Worker)
+// ---------------------------------------------------------------------
+const SERVER_URL = "wss://TU-WORKER.workers.dev/ws";
+
+// ---------------------------------------------------------------------
+// UTILIDADES
+// ---------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+function isLandscape(){ return window.innerWidth > window.innerHeight; }
+function isTouchDevice(){ return ('ontouchstart' in window) || navigator.maxTouchPoints > 0; }
+
+// ---------------------------------------------------------------------
+// PERSONALIZACIÓN / LOCALSTORAGE
+// ---------------------------------------------------------------------
+const WARDROBE_OPTIONS = {
+  hair:      ["#1a1a1a","#5a3825","#c9a24b","#e0e0e0","#ff4b6e","#00c2ff"],
+  shirt:     ["#e63946","#2a9d8f","#264653","#f4a261","#7b2cff","#ffffff"],
+  jacket:    ["none","#111111","#0075ff","#ff2e97","#2ecc71"],
+  pants:     ["#2b2d42","#495057","#1d3557","#3a3a3a","#6b4226"],
+  shoes:     ["#111111","#ffffff","#ff2e97","#00e5ff"],
+  hat:       ["none","#111111","#ff2e97","#00e5ff","#ffcc00"],
+  accessory: ["none","glasses","backpack","chain"],
+  skin:      ["#ffe0bd","#f1c27d","#c68642","#8d5524","#3b2417"],
+};
+
+function defaultAppearance(){
+  return {
+    name:"Jugador", hair:"#1a1a1a", shirt:"#2a9d8f", jacket:"none",
+    pants:"#2b2d42", shoes:"#111111", hat:"none", accessory:"none", skin:"#f1c27d",
+  };
+}
+function loadAppearance(){
+  try{
+    const raw = localStorage.getItem("neoncity_appearance");
+    if(raw) return Object.assign(defaultAppearance(), JSON.parse(raw));
+  }catch(e){}
+  return defaultAppearance();
+}
+function saveAppearance(app){
+  localStorage.setItem("neoncity_appearance", JSON.stringify(app));
+}
+let appearance = loadAppearance();
+
+function loadPlayerName(){ return localStorage.getItem("neoncity_name") || ""; }
+function savePlayerName(n){ localStorage.setItem("neoncity_name", n); }
+
+// ---------------------------------------------------------------------
+// CONSTRUCCIÓN DEL MODELO DE PERSONAJE (estilizado, low-poly, propio)
+// ---------------------------------------------------------------------
+function buildCharacter(app){
+  const group = new THREE.Group();
+  group.userData.parts = {};
+
+  const skinMat = new THREE.MeshLambertMaterial({color:app.skin});
+  const shirtMat = new THREE.MeshLambertMaterial({color:app.shirt});
+  const pantsMat = new THREE.MeshLambertMaterial({color:app.pants});
+  const shoesMat = new THREE.MeshLambertMaterial({color:app.shoes});
+  const hairMat = new THREE.MeshLambertMaterial({color:app.hair});
+
+  // Torso
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.65,0.28), shirtMat);
+  torso.position.y = 1.15;
+  group.add(torso);
+
+  // Cabeza
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.32,0.32,0.32), skinMat);
+  head.position.y = 1.66;
+  group.add(head);
+
+  // Pelo
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34,0.14,0.34), hairMat);
+  hair.position.y = 1.85;
+  group.add(hair);
+
+  // Gorro (opcional)
+  let hat = null;
+  if(app.hat !== "none"){
+    hat = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.16,0.38), new THREE.MeshLambertMaterial({color:app.hat}));
+    hat.position.y = 1.92;
+    group.add(hat);
+  }
+
+  // Chaqueta (opcional, capa sobre torso)
+  let jacket = null;
+  if(app.jacket !== "none"){
+    jacket = new THREE.Mesh(new THREE.BoxGeometry(0.56,0.5,0.32), new THREE.MeshLambertMaterial({color:app.jacket}));
+    jacket.position.y = 1.25;
+    group.add(jacket);
+  }
+
+  // Brazos
+  const armGeo = new THREE.BoxGeometry(0.16,0.55,0.16);
+  const armL = new THREE.Mesh(armGeo, skinMat);
+  armL.position.set(-0.36,1.2,0); armL.geometry.translate(0,-0.275,0);
+  const armR = armL.clone();
+  armR.position.x = 0.36;
+  group.add(armL, armR);
+
+  // Piernas
+  const legGeo = new THREE.BoxGeometry(0.2,0.6,0.2);
+  const legL = new THREE.Mesh(legGeo, pantsMat);
+  legL.position.set(-0.13,0.85,0); legL.geometry.translate(0,-0.3,0);
+  const legR = legL.clone();
+  legR.position.x = 0.13;
+  group.add(legL, legR);
+
+  // Zapatos
+  const shoeGeo = new THREE.BoxGeometry(0.22,0.12,0.28);
+  const shoeL = new THREE.Mesh(shoeGeo, shoesMat);
+  shoeL.position.set(-0.13,0.06,0.03);
+  const shoeR = shoeL.clone();
+  shoeR.position.x = 0.13;
+  group.add(shoeL, shoeR);
+
+  // Accesorio simple: mochila o cadena o gafas
+  let accessory = null;
+  if(app.accessory === "backpack"){
+    accessory = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.42,0.16), new THREE.MeshLambertMaterial({color:0x333333}));
+    accessory.position.set(0,1.18,-0.22);
+    group.add(accessory);
+  } else if(app.accessory === "glasses"){
+    accessory = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.08,0.05), new THREE.MeshLambertMaterial({color:0x111111}));
+    accessory.position.set(0,1.68,0.17);
+    group.add(accessory);
+  } else if(app.accessory === "chain"){
+    accessory = new THREE.Mesh(new THREE.TorusGeometry(0.13,0.02,6,12), new THREE.MeshLambertMaterial({color:0xffcc00}));
+    accessory.rotation.x = Math.PI/2;
+    accessory.position.set(0,1.35,0.15);
+    group.add(accessory);
+  }
+
+  group.userData.parts = { torso, head, hair, hat, jacket, armL, armR, legL, legR, shoeL, shoeR, accessory };
+
+  // Nametag (billboard sprite)
+  const tag = makeNameSprite(app.name || "Jugador");
+  tag.position.y = 2.2;
+  group.add(tag);
+  group.userData.nameTag = tag;
+
+  return group;
+}
+
+function makeNameSprite(text){
+  const canvas = document.createElement("canvas");
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.font = "bold 34px Arial";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  roundRect(ctx, 8, 8, 240, 48, 12); ctx.fill();
+  ctx.fillStyle = "#00e5ff";
+  ctx.fillText(text, 128, 42);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({map:tex, depthTest:false});
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(1.4,0.35,1);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+// Animación procedural simple aplicada a las partes del personaje
+function animateCharacter(group, animState, t){
+  const p = group.userData.parts;
+  if(!p) return;
+  const walkCycle = Math.sin(t*8);
+  const idleCycle = Math.sin(t*2);
+
+  // Reset de posiciones locales por defecto (crouch las sobreescribe si aplica)
+  p.torso.position.y = 1.15;
+  p.head.position.y = 1.66;
+  p.hair.position.y = 1.85;
+  if(p.hat) p.hat.position.y = 1.92;
+  if(p.jacket) p.jacket.position.y = 1.25;
+
+  switch(animState.anim){
+    case "walk":
+      p.legL.rotation.x = walkCycle*0.6;
+      p.legR.rotation.x = -walkCycle*0.6;
+      p.armL.rotation.x = -walkCycle*0.5;
+      p.armR.rotation.x = walkCycle*0.5;
+      break;
+    case "run":
+      p.legL.rotation.x = walkCycle*1.0;
+      p.legR.rotation.x = -walkCycle*1.0;
+      p.armL.rotation.x = -walkCycle*0.9;
+      p.armR.rotation.x = walkCycle*0.9;
+      break;
+    case "jump":
+      p.legL.rotation.x = -0.3; p.legR.rotation.x = -0.3;
+      p.armL.rotation.x = -1.4; p.armR.rotation.x = -1.4;
+      break;
+    case "punch":
+      p.armR.rotation.x = -1.6;
+      p.armL.rotation.x = 0.1 + idleCycle*0.05;
+      p.legL.rotation.x = 0; p.legR.rotation.x = 0;
+      break;
+    case "hit":
+      group.rotation.z = 0.15;
+      p.armL.rotation.x = 0.3; p.armR.rotation.x = 0.3;
+      break;
+    case "dead":
+      group.rotation.x = Math.PI/2 * 0.9;
+      break;
+    case "drive":
+      p.armL.rotation.x = -0.3; p.armR.rotation.x = -0.3;
+      p.legL.rotation.x = -1.2; p.legR.rotation.x = -1.2;
+      break;
+    case "crouch":
+    case "crouchWalk": {
+      // Baja el torso/cabeza (posiciones LOCALES) para no tocar la posición
+      // mundial del grupo, que la controla la física de salto y la red.
+      const walking = animState.anim === "crouchWalk";
+      const bendLegs = walking ? 0.9 + walkCycle*0.35 : 0.9;
+      const bendLegs2 = walking ? 0.9 - walkCycle*0.35 : 0.9;
+      p.legL.rotation.x = bendLegs; p.legR.rotation.x = bendLegs2;
+      p.armL.rotation.x = walking ? 0.3 - walkCycle*0.2 : 0.3;
+      p.armR.rotation.x = walking ? 0.3 + walkCycle*0.2 : 0.3;
+      group.rotation.z = 0;
+      p.torso.position.y = 0.85;
+      p.head.position.y = 1.36;
+      p.hair.position.y = 1.55;
+      if(p.hat) p.hat.position.y = 1.62;
+      if(p.jacket) p.jacket.position.y = 0.95;
+      break;
+    }
+    default: // idle
+      p.legL.rotation.x = 0; p.legR.rotation.x = 0;
+      p.armL.rotation.x = idleCycle*0.05; p.armR.rotation.x = -idleCycle*0.05;
+      group.rotation.z = 0;
+      if(animState.anim !== "dead") group.rotation.x = 0;
+      p.torso.position.y = 1.15 + Math.abs(idleCycle)*0.01;
+  }
+}
+
+// =======================================================================
+// PANTALLA: ROTACIÓN
+// =======================================================================
+function updateOrientation(){
+  const needsRotate = isTouchDevice() && !isLandscape();
+  $('rotateWarning').classList.toggle('show', needsRotate);
+}
+window.addEventListener('resize', updateOrientation);
+window.addEventListener('orientationchange', updateOrientation);
+updateOrientation();
+
+// =======================================================================
+// PANTALLA: MENÚ PRINCIPAL (personaje 3D animado)
+// =======================================================================
+let menuScene, menuCamera, menuRenderer, menuChar, menuT=0;
+function initMenuScene(){
+  menuScene = new THREE.Scene();
+  menuCamera = new THREE.PerspectiveCamera(35, window.innerWidth/window.innerHeight, 0.1, 100);
+  menuCamera.position.set(0,1.4,3.2);
+  menuCamera.lookAt(0,1.2,0);
+
+  menuRenderer = new THREE.WebGLRenderer({canvas:$('menuCanvas'), antialias:true, alpha:true});
+  menuRenderer.setSize(window.innerWidth, window.innerHeight);
+  menuRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+  const amb = new THREE.AmbientLight(0xffffff,0.7);
+  const dir = new THREE.DirectionalLight(0x00e5ff,0.8);
+  dir.position.set(2,4,2);
+  menuScene.add(amb,dir);
+
+  menuChar = buildCharacter(appearance);
+  menuChar.userData.nameTag.visible = false;
+  menuScene.add(menuChar);
+
+  animateMenu();
+}
+function animateMenu(){
+  requestAnimationFrame(animateMenu);
+  if(!$('menuScreen').classList.contains('active') || !menuRenderer) return;
+  menuT += 0.016;
+  menuChar.rotation.y = Math.sin(menuT*0.4)*0.5;
+  animateCharacter(menuChar, {anim:"idle"}, menuT);
+  menuRenderer.render(menuScene, menuCamera);
+}
+window.addEventListener('resize', ()=>{
+  if(menuRenderer){
+    menuCamera.aspect = innerWidth/innerHeight; menuCamera.updateProjectionMatrix();
+    menuRenderer.setSize(innerWidth, innerHeight);
+  }
+});
+
+// =======================================================================
+// PANTALLA: VESTIDOR
+// =======================================================================
+let wardrobeScene, wardrobeCamera, wardrobeRenderer, wardrobeChar, wardrobeT=0;
+function initWardrobeScene(){
+  const container = $('wardrobeCanvas');
+  wardrobeScene = new THREE.Scene();
+  wardrobeCamera = new THREE.PerspectiveCamera(35, container.clientWidth/container.clientHeight, 0.1, 100);
+  wardrobeCamera.position.set(0,1.35,2.6);
+  wardrobeCamera.lookAt(0,1.15,0);
+
+  wardrobeRenderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  wardrobeRenderer.setSize(container.clientWidth, container.clientHeight);
+  wardrobeRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  container.appendChild(wardrobeRenderer.domElement);
+
+  const amb = new THREE.AmbientLight(0xffffff,0.8);
+  const dir = new THREE.DirectionalLight(0xffffff,0.6);
+  dir.position.set(2,4,3);
+  wardrobeScene.add(amb,dir);
+
+  rebuildWardrobeChar();
+  animateWardrobe();
+}
+function rebuildWardrobeChar(){
+  if(wardrobeChar) wardrobeScene.remove(wardrobeChar);
+  wardrobeChar = buildCharacter(appearance);
+  wardrobeChar.userData.nameTag.visible = false;
+  wardrobeScene.add(wardrobeChar);
+}
+function animateWardrobe(){
+  requestAnimationFrame(animateWardrobe);
+  if(!$('wardrobeScreen').classList.contains('active') || !wardrobeRenderer) return;
+  wardrobeT += 0.016;
+  wardrobeChar.rotation.y = Math.sin(wardrobeT*0.5)*0.6;
+  animateCharacter(wardrobeChar, {anim:"idle"}, wardrobeT);
+  wardrobeRenderer.render(wardrobeScene, wardrobeCamera);
+}
+
+function buildWardrobeUI(){
+  for(const cat in WARDROBE_OPTIONS){
+    const row = $('opt_'+cat);
+    row.innerHTML = "";
+    WARDROBE_OPTIONS[cat].forEach(val=>{
+      const el = document.createElement('div');
+      el.className = 'swatch' + (appearance[cat]===val ? ' active':'');
+      if(cat === 'accessory' || val === 'none'){
+        el.textContent = val === 'none' ? '—' : val.slice(0,4);
+      } else {
+        const inner = document.createElement('div');
+        inner.className = 'colorSwatch';
+        inner.style.background = val;
+        el.appendChild(inner);
+      }
+      el.addEventListener('click', ()=>{
+        appearance[cat] = val;
+        buildWardrobeUI();
+        rebuildWardrobeChar();
+      });
+      row.appendChild(el);
+    });
+  }
+}
+
+$('btnWardrobe').addEventListener('click', ()=>{
+  switchScreen('wardrobeScreen');
+  buildWardrobeUI();
+  if(!wardrobeRenderer) initWardrobeScene();
+});
+$('btnBackFromWardrobe').addEventListener('click', ()=> switchScreen('menuScreen'));
+$('btnSaveWardrobe').addEventListener('click', ()=>{
+  saveAppearance(appearance);
+  switchScreen('menuScreen');
+  if(menuChar){ menuScene.remove(menuChar); menuChar = buildCharacter(appearance); menuChar.userData.nameTag.visible=false; menuScene.add(menuChar); }
+});
+
+// =======================================================================
+// NAVEGACIÓN ENTRE PANTALLAS
+// =======================================================================
+function switchScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+// Nombre del jugador
+const nameInput = $('playerNameInput');
+nameInput.value = loadPlayerName();
+appearance.name = nameInput.value || appearance.name;
+nameInput.addEventListener('input', ()=>{ $('nameError').textContent=""; });
+
+// =======================================================================
+// CONEXIÓN WEBSOCKET (se intenta desde el menú para mostrar contador real)
+// =======================================================================
+let socket = null;
+let socketReady = false;
+let myId = null;
+let onlineCount = null; // null = desconocido, no inventar
+let reconnectTimer = null;
+let lastPingSent = 0;
+let pingMs = null;
+
+function connectSocket(){
+  updateConnLabel("CONECTANDO...");
+  try{
+    socket = new WebSocket(SERVER_URL);
+  }catch(e){
+    updateConnLabel("DESCONECTADO");
+    scheduleReconnect();
+    return;
+  }
+
+  socket.addEventListener('open', ()=>{
+    socketReady = true;
+    updateConnLabel("CONECTADO");
+    socket.send(JSON.stringify({type:"join", name: appearance.name, appearance}));
+  });
+
+  socket.addEventListener('message', (ev)=>{
+    let msg;
+    try{ msg = JSON.parse(ev.data); }catch(e){ return; }
+    handleServerMessage(msg);
+  });
+
+  socket.addEventListener('close', ()=>{
+    socketReady = false;
+    myId = null;
+    onlineCount = null;
+    updateOnlineUI();
+    updateConnLabel("CONEXIÓN PERDIDA");
+    scheduleReconnect();
+  });
+
+  socket.addEventListener('error', ()=>{
+    updateConnLabel("DESCONECTADO");
+  });
+}
+function scheduleReconnect(){
+  if(reconnectTimer) return;
+  reconnectTimer = setTimeout(()=>{
+    reconnectTimer = null;
+    updateConnLabel("REINTENTANDO...");
+    connectSocket();
+  }, 2500);
+}
+function updateConnLabel(text){
+  const el = $('connState');
+  if(el) el.textContent = text;
+}
+function updateOnlineUI(){
+  $('onlineCount').textContent = onlineCount === null ? "--" : onlineCount;
+  $('onlineHud').textContent = "JUGADORES EN LÍNEA: " + (onlineCount === null ? "--" : onlineCount);
+}
+
+// Estructuras del mundo (se llenan cuando el juego está activo)
+const remotePlayers = new Map(); // id -> {group, target:{x,y,z,rotY}, anim, hp, dead, nameTag}
+
+function handleServerMessage(msg){
+  switch(msg.type){
+    case "welcome": {
+      myId = msg.id;
+      if(worldReady){
+        localPlayer.position.set(msg.spawn.x, msg.spawn.y, msg.spawn.z);
+      }
+      msg.players.forEach(p=>{ if(p.id !== myId) upsertRemotePlayer(p); });
+      break;
+    }
+    case "playerJoined": {
+      if(msg.player.id !== myId) upsertRemotePlayer(msg.player);
+      break;
+    }
+    case "playerLeft": {
+      removeRemotePlayer(msg.id);
+      break;
+    }
+    case "state": {
+      onlineCount = msg.online;
+      updateOnlineUI();
+      msg.players.forEach(p=>{
+        if(p.id === myId) return;
+        if(!remotePlayers.has(p.id)) upsertRemotePlayer(p);
+        else updateRemotePlayerTarget(p);
+      });
+      break;
+    }
+    case "anim": {
+      const rp = remotePlayers.get(msg.id);
+      if(rp) rp.anim = msg.anim;
+      break;
+    }
+    case "hit": {
+      if(msg.id === myId){
+        localHP = msg.hp;
+        updateHPUI();
+        flashDamage();
+      } else {
+        const rp = remotePlayers.get(msg.id);
+        if(rp){ rp.hp = msg.hp; rp.anim = "hit"; setTimeout(()=>{ if(rp.anim==="hit") rp.anim="idle"; }, 300); }
+      }
+      break;
+    }
+    case "dead": {
+      if(msg.id === myId){
+        isDead = true;
+        $('deathMsg').classList.add('show');
+      } else {
+        const rp = remotePlayers.get(msg.id);
+        if(rp){ rp.dead = true; rp.anim = "dead"; }
+      }
+      break;
+    }
+    case "respawn": {
+      if(msg.id === myId){
+        isDead = false; localHP = msg.hp;
+        updateHPUI();
+        $('deathMsg').classList.remove('show');
+        if(worldReady) localPlayer.position.set(msg.x, msg.y, msg.z);
+      } else {
+        const rp = remotePlayers.get(msg.id);
+        if(rp){
+          rp.dead = false; rp.hp = msg.hp; rp.anim = "idle";
+          rp.group.position.set(msg.x, msg.y, msg.z);
+          rp.target = {x:msg.x, y:msg.y, z:msg.z, rotY:rp.group.rotation.y};
+        }
+      }
+      break;
+    }
+  }
+}
+
+function upsertRemotePlayer(p){
+  let rp = remotePlayers.get(p.id);
+  if(!rp){
+    const group = buildCharacter(Object.assign({name:p.name}, p.appearance||{}));
+    if(worldReady) cityScene.add(group);
+    rp = { group, target:{x:p.x,y:p.y,z:p.z,rotY:p.rotY}, anim:p.anim||"idle", hp:p.hp, dead:p.dead, t:0 };
+    remotePlayers.set(p.id, rp);
+  }
+  updateRemotePlayerTarget(p);
+}
+function updateRemotePlayerTarget(p){
+  const rp = remotePlayers.get(p.id);
+  if(!rp) return;
+  rp.target = {x:p.x, y:p.y, z:p.z, rotY:p.rotY};
+  rp.anim = p.anim || rp.anim;
+  rp.hp = p.hp;
+  rp.dead = p.dead;
+}
+function removeRemotePlayer(id){
+  const rp = remotePlayers.get(id);
+  if(rp && worldReady) cityScene.remove(rp.group);
+  remotePlayers.delete(id);
+}
+
+// =======================================================================
+// VALIDACIÓN DE NOMBRE Y ARRANQUE DEL MUNDO
+// =======================================================================
+$('btnPlay').addEventListener('click', ()=>{
+  const name = nameInput.value.trim();
+  if(!name){
+    $('nameError').textContent = "Debes introducir un nombre para jugar.";
+    return;
+  }
+  savePlayerName(name);
+  appearance.name = name;
+  saveAppearance(appearance);
+  startLoading();
+});
+
+function startLoading(){
+  switchScreen('loadingScreen');
+  const bar = $('loadBar'), msg = $('loadMsg');
+  const steps = [
+    ["Preparando ciudad...", 20],
+    ["Generando vehículos...", 40],
+    ["Preparando ciudadanos...", 60],
+    ["Conectando al servidor...", 80],
+    ["Buscando jugadores...", 100],
+  ];
+  let i = 0;
+  function next(){
+    if(i >= steps.length){
+      setTimeout(enterWorld, 300);
+      return;
+    }
+    msg.textContent = steps[i][0];
+    bar.style.width = steps[i][1]+"%";
+    i++;
+    setTimeout(next, 380);
+  }
+  next();
+}
+
+function enterWorld(){
+  switchScreen('gameScreen');
+  $('hud').classList.add('active');
+  $('hudName').textContent = appearance.name;
+  if(isTouchDevice()){
+    $('mobileControls').classList.add('active');
+  } else {
+    $('desktopHint').style.display = 'block';
+  }
+  if(!worldReady) initWorld();
+  if(!socket || !socketReady){
+    // aseguramos intento de conexión si aún no se había hecho
+    connectSocket();
+  } else {
+    socket.send(JSON.stringify({type:"join", name: appearance.name, appearance}));
+  }
+}
+
+// Iniciar intento de conexión ya desde el menú para poder mostrar el contador real
+connectSocket();
+setInterval(()=>{
+  if(socketReady){
+    lastPingSent = performance.now();
+    try{ socket.send(JSON.stringify({type:"state", x:lastSentX, y:0, z:lastSentZ, rotY:lastSentRot, anim:lastSentAnim, vehicle:currentVehicle?currentVehicle.userData.netType:null})); }catch(e){}
+  }
+}, 80);
+
+// =======================================================================
+// MUNDO 3D DEL JUEGO
+// =======================================================================
+let worldReady = false;
+let cityScene, cityCamera, cityRenderer;
+let localPlayer, localMixerT = 0;
+let localHP = 100, isDead = false;
+let localAnim = "idle";
+let currentVehicle = null;
+const npcs = [];
+const trafficCars = [];
+const clock = new THREE.Clock();
+
+let lastSentX=0, lastSentZ=0, lastSentRot=0, lastSentAnim="idle";
+
+function initWorld(){
+  worldReady = true;
+  const container = $('gameCanvas');
+
+  cityScene = new THREE.Scene();
+  cityScene.background = new THREE.Color(0x8fd3ff);
+  cityScene.fog = new THREE.Fog(0x8fd3ff, 40, 160);
+
+  cityCamera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 500);
+
+  cityRenderer = new THREE.WebGLRenderer({antialias:true});
+  cityRenderer.setSize(innerWidth, innerHeight);
+  cityRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  cityRenderer.shadowMap.enabled = true;
+  container.appendChild(cityRenderer.domElement);
+
+  const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+  sun.position.set(40,60,20);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024,1024);
+  sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
+  sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
+  cityScene.add(sun);
+  cityScene.add(new THREE.AmbientLight(0xffffff, 0.55));
+
+  buildCity();
+  buildTraffic();
+  buildNPCs();
+
+  localPlayer = buildCharacter(appearance);
+  localPlayer.userData.nameTag.visible = false; // no mostramos nuestro propio nombre
+  localPlayer.position.set(0,0,0);
+  cityScene.add(localPlayer);
+
+  initControls();
+  animateWorld();
+  window.addEventListener('resize', onWorldResize);
+}
+function onWorldResize(){
+  if(!cityRenderer) return;
+  cityCamera.aspect = innerWidth/innerHeight;
+  cityCamera.updateProjectionMatrix();
+  cityRenderer.setSize(innerWidth, innerHeight);
+}
+
+// ---------------- CIUDAD ----------------
+const BUILDINGS = [];
+const STREET_HALF = 90;
+function buildCity(){
+  // Suelo / calles
+  const groundMat = new THREE.MeshLambertMaterial({color:0x2b2f36});
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(STREET_HALF*2, STREET_HALF*2), groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  cityScene.add(ground);
+
+  // Cuadrícula de manzanas con aceras
+  const blockSize = 20;
+  const streetWidth = 6;
+  const sidewalkMat = new THREE.MeshLambertMaterial({color:0x6b6f76});
+  for(let gx=-3; gx<=3; gx++){
+    for(let gz=-3; gz<=3; gz++){
+      const cx = gx*blockSize, cz = gz*blockSize;
+      if(gx===0 && gz===0) continue; // plaza central libre
+      // acera del bloque
+      const sidewalk = new THREE.Mesh(new THREE.PlaneGeometry(blockSize-streetWidth, blockSize-streetWidth), sidewalkMat);
+      sidewalk.rotation.x = -Math.PI/2;
+      sidewalk.position.set(cx, 0.02, cz);
+      sidewalk.receiveShadow = true;
+      cityScene.add(sidewalk);
+
+      if(Math.random() < 0.75){
+        addBuilding(cx + (Math.random()-0.5)*3, cz + (Math.random()-0.5)*3);
+      } else if(Math.random() < 0.5) {
+        addPark(cx, cz);
+      }
+    }
+  }
+
+  // Farolas y semáforos en cruces
+  for(let gx=-3; gx<=3; gx++){
+    for(let gz=-3; gz<=3; gz++){
+      addStreetLamp(gx*blockSize + blockSize/2, gz*blockSize + blockSize/2);
+    }
+  }
+
+  // Árboles dispersos
+  for(let i=0;i<40;i++){
+    const x = (Math.random()-0.5)*STREET_HALF*1.8;
+    const z = (Math.random()-0.5)*STREET_HALF*1.8;
+    if(Math.abs(x % 20) < 4 || Math.abs(z % 20) < 4) continue;
+    addTree(x,z);
+  }
+}
+function addBuilding(x,z){
+  const w = 4 + Math.random()*6, d = 4+Math.random()*6, h = 6 + Math.random()*22;
+  const hueOptions = [0x3a4a6b,0x4b3a6b,0x2f5f5f,0x6b4a3a,0x555f7a];
+  const mat = new THREE.MeshLambertMaterial({color: hueOptions[Math.floor(Math.random()*hueOptions.length)]});
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  b.position.set(x, h/2, z);
+  b.castShadow = true; b.receiveShadow = true;
+  cityScene.add(b);
+  BUILDINGS.push({x,z,w,d});
+
+  // ventanitas emisivas simples (plano con textura procedimental ligera)
+  const winMat = new THREE.MeshBasicMaterial({color:0xfff2a8});
+  for(let i=0;i<Math.min(6, Math.floor(h/3));i++){
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(w*0.6, 0.6), winMat);
+    win.position.set(x, 3+i*3, z + d/2 + 0.01);
+    cityScene.add(win);
+  }
+}
+function addPark(x,z){
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(14,14), new THREE.MeshLambertMaterial({color:0x2e8b57}));
+  grass.rotation.x=-Math.PI/2; grass.position.set(x,0.03,z);
+  cityScene.add(grass);
+  for(let i=0;i<5;i++){
+    addTree(x + (Math.random()-0.5)*10, z + (Math.random()-0.5)*10);
+  }
+}
+function addTree(x,z){
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.2,1.4,6), new THREE.MeshLambertMaterial({color:0x5a3d20}));
+  trunk.position.set(x,0.7,z);
+  const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.1,7,6), new THREE.MeshLambertMaterial({color:0x2f7a3f}));
+  leaves.position.set(x,2.0,z);
+  trunk.castShadow = leaves.castShadow = true;
+  cityScene.add(trunk, leaves);
+}
+function addStreetLamp(x,z){
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,4,6), new THREE.MeshLambertMaterial({color:0x222222}));
+  pole.position.set(x,2,z);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8), new THREE.MeshBasicMaterial({color:0xffe28a}));
+  bulb.position.set(x,4.05,z);
+  cityScene.add(pole, bulb);
+}
+
+// ---------------- VEHÍCULOS ----------------
+const parkedVehicles = [];
+function makeVehicleMesh(color, isBike){
+  const group = new THREE.Group();
+  if(isBike){
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.4,1.4), new THREE.MeshLambertMaterial({color}));
+    body.position.y = 0.55;
+    group.add(body);
+    const wheelGeo = new THREE.CylinderGeometry(0.35,0.35,0.15,10);
+    const wf = new THREE.Mesh(wheelGeo, new THREE.MeshLambertMaterial({color:0x111111}));
+    wf.rotation.z = Math.PI/2; wf.position.set(0,0.35,0.6);
+    const wb = wf.clone(); wb.position.z=-0.6;
+    group.add(wf,wb);
+  } else {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.7,0.6,3.4), new THREE.MeshLambertMaterial({color}));
+    body.position.y = 0.6;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.5,1.6), new THREE.MeshLambertMaterial({color:0x1a1a1a}));
+    cabin.position.set(0,1.05,-0.1);
+    group.add(body,cabin);
+    const wheelGeo = new THREE.CylinderGeometry(0.32,0.32,0.3,10);
+    const wheelMat = new THREE.MeshLambertMaterial({color:0x111111});
+    [[-0.85,0.3,1.2],[0.85,0.3,1.2],[-0.85,0.3,-1.2],[0.85,0.3,-1.2]].forEach(([x,y,z])=>{
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.rotation.z = Math.PI/2;
+      w.position.set(x,y,z);
+      group.add(w);
+    });
+  }
+  group.castShadow = true;
+  group.traverse(o=>{ if(o.isMesh) o.castShadow = true; });
+  return group;
+}
+function buildTraffic(){
+  const colors = [0xff2e97,0x00e5ff,0xffd23f,0x2ecc71,0xffffff,0x8888ff];
+  // vehículos aparcados / decorativos
+  for(let i=0;i<10;i++){
+    const isBike = Math.random()<0.35;
+    const v = makeVehicleMesh(colors[Math.floor(Math.random()*colors.length)], isBike);
+    v.userData.netType = isBike ? "moto" : "car";
+    v.userData.parked = true;
+    v.userData.speed = 0;
+    const x = (Math.random()-0.5)*STREET_HALF*1.5;
+    const z = (Math.random()-0.5)*STREET_HALF*1.5;
+    v.position.set(x,0,z);
+    v.rotation.y = Math.random()*Math.PI*2;
+    cityScene.add(v);
+    parkedVehicles.push(v);
+  }
+  // tráfico NPC simple en línea recta con reinicio (ligero, sin física compleja)
+  for(let i=0;i<6;i++){
+    const v = makeVehicleMesh(colors[Math.floor(Math.random()*colors.length)], false);
+    v.userData.netType = "car";
+    const lane = (Math.random()<0.5) ? 1 : -1;
+    v.position.set(-STREET_HALF + Math.random()*STREET_HALF*2, 0, (Math.floor(Math.random()*7)-3)*20 + lane*1.5);
+    v.rotation.y = lane>0 ? Math.PI/2 : -Math.PI/2;
+    v.userData.dir = lane;
+    v.userData.speed = 4 + Math.random()*3;
+    cityScene.add(v);
+    trafficCars.push(v);
+  }
+}
+function updateTraffic(dt){
+  trafficCars.forEach(v=>{
+    v.position.x += v.userData.dir * v.userData.speed * dt;
+    if(v.position.x > STREET_HALF+5) v.position.x = -STREET_HALF-5;
+    if(v.position.x < -STREET_HALF-5) v.position.x = STREET_HALF+5;
+  });
+}
+
+// ---------------- NPCs (peatones) ----------------
+function buildNPCs(){
+  const skinTones = ["#ffe0bd","#f1c27d","#c68642","#8d5524"];
+  const shirtTones = ["#e63946","#2a9d8f","#264653","#f4a261","#7b2cff"];
+  for(let i=0;i<14;i++){
+    const app = {
+      name:"", skin: skinTones[Math.floor(Math.random()*skinTones.length)],
+      hair:"#222222", shirt: shirtTones[Math.floor(Math.random()*shirtTones.length)],
+      jacket:"none", pants:"#333344", shoes:"#111111", hat:"none", accessory:"none",
+    };
+    const npc = buildCharacter(app);
+    npc.userData.nameTag.visible = false;
+    const x = (Math.random()-0.5)*STREET_HALF*1.6;
+    const z = (Math.random()-0.5)*STREET_HALF*1.6;
+    npc.position.set(x,0,z);
+    npc.userData.dir = Math.random()*Math.PI*2;
+    npc.userData.speed = 0.6 + Math.random()*0.6;
+    npc.userData.timer = Math.random()*4;
+    cityScene.add(npc);
+    npcs.push(npc);
+  }
+}
+function updateNPCs(dt, t){
+  npcs.forEach(npc=>{
+    npc.userData.timer -= dt;
+    if(npc.userData.timer <= 0){
+      npc.userData.dir += (Math.random()-0.5)*1.4;
+      npc.userData.timer = 2 + Math.random()*3;
+    }
+    npc.position.x += Math.sin(npc.userData.dir)*npc.userData.speed*dt;
+    npc.position.z += Math.cos(npc.userData.dir)*npc.userData.speed*dt;
+    npc.position.x = Math.max(-STREET_HALF, Math.min(STREET_HALF, npc.position.x));
+    npc.position.z = Math.max(-STREET_HALF, Math.min(STREET_HALF, npc.position.z));
+    npc.rotation.y = npc.userData.dir;
+    animateCharacter(npc, {anim:"walk"}, t + npc.userData.timer);
+  });
+}
+
+// =======================================================================
+// CONTROLES (PC + MÓVIL)
+// =======================================================================
+const input = { moveX:0, moveZ:0, run:false, jump:false, punch:false, interact:false, crouch:false };
+const keys = {};
+let camYaw = 0, camPitch = 0.35, camDistance = 6;
+
+function initControls(){
+  // PC teclado
+  window.addEventListener('keydown', (e)=>{
+    keys[e.key.toLowerCase()] = true;
+    if(e.key === ' ') input.jump = true;
+    if(e.key.toLowerCase() === 'e') tryToggleVehicle();
+    if(e.key.toLowerCase() === 'f') input.interact = true;
+    if(e.key.toLowerCase() === 'c') input.crouch = !input.crouch;
+  });
+  window.addEventListener('keyup', (e)=>{ keys[e.key.toLowerCase()] = false; });
+
+  window.addEventListener('mousedown', (e)=>{
+    if(e.target.closest && e.target.closest('#hud')) return;
+    if(!isTouchDevice()) doPunch();
+  });
+
+  let dragging=false, lastX=0, lastY=0;
+  cityRenderer.domElement.addEventListener('mousedown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; });
+  window.addEventListener('mouseup', ()=> dragging=false);
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    camYaw -= (e.clientX-lastX)*0.005;
+    camPitch = Math.max(0.1, Math.min(1.2, camPitch - (e.clientY-lastY)*0.003));
+    lastX=e.clientX; lastY=e.clientY;
+  });
+  cityRenderer.domElement.addEventListener('wheel', e=>{
+    camDistance = Math.max(3, Math.min(14, camDistance + e.deltaY*0.005));
+  });
+
+  // Móvil: joystick
+  const joyZone = $('joyZone'), joyBase = $('joyBase'), joyStick = $('joyStick');
+  let joyActive=false, joyId=null, joyCenter={x:0,y:0};
+  joyZone.addEventListener('touchstart', e=>{
+    const t = e.changedTouches[0];
+    joyActive = true; joyId = t.identifier;
+    joyCenter = {x:t.clientX, y:t.clientY};
+    joyBase.style.left = (t.clientX-55)+"px";
+    joyBase.style.top = (t.clientY-55)+"px";
+    joyBase.style.display = "block";
+  }, {passive:true});
+  joyZone.addEventListener('touchmove', e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier !== joyId) continue;
+      let dx = t.clientX - joyCenter.x, dy = t.clientY - joyCenter.y;
+      const max = 45;
+      const len = Math.min(max, Math.hypot(dx,dy));
+      const ang = Math.atan2(dy,dx);
+      dx = Math.cos(ang)*len; dy = Math.sin(ang)*len;
+      joyStick.style.left = (30+dx)+"px";
+      joyStick.style.top = (30+dy)+"px";
+      input.moveX = dx/max;
+      input.moveZ = dy/max;
+    }
+  }, {passive:true});
+  function endJoy(e){
+    for(const t of e.changedTouches){
+      if(t.identifier !== joyId) continue;
+      joyActive = false; joyId=null;
+      joyBase.style.display = "none";
+      joyStick.style.left="30px"; joyStick.style.top="30px";
+      input.moveX = 0; input.moveZ = 0;
+    }
+  }
+  joyZone.addEventListener('touchend', endJoy);
+  joyZone.addEventListener('touchcancel', endJoy);
+
+  // Móvil: cámara (deslizar en zona derecha)
+  const camZone = $('camZone');
+  let camTouchId=null, camLastX=0, camLastY=0;
+  camZone.addEventListener('touchstart', e=>{
+    const t = e.changedTouches[0];
+    camTouchId = t.identifier; camLastX=t.clientX; camLastY=t.clientY;
+  }, {passive:true});
+  camZone.addEventListener('touchmove', e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier !== camTouchId) continue;
+      camYaw -= (t.clientX-camLastX)*0.006;
+      camPitch = Math.max(0.1, Math.min(1.2, camPitch - (t.clientY-camLastY)*0.004));
+      camLastX=t.clientX; camLastY=t.clientY;
+    }
+  }, {passive:true});
+  camZone.addEventListener('touchend', e=>{ if(e.changedTouches[0].identifier===camTouchId) camTouchId=null; });
+
+  // Botones de acción móviles
+  bindHold('btnRun', v=> input.run = v);
+  $('btnJump').addEventListener('touchstart', ()=> input.jump = true);
+  $('btnInteract').addEventListener('touchstart', ()=>{ tryToggleVehicle(); });
+  $('btnPunch').addEventListener('touchstart', ()=> doPunch());
+  $('btnCrouch').addEventListener('touchstart', ()=>{
+    input.crouch = !input.crouch;
+    $('btnCrouch').style.background = input.crouch ? "rgba(0,229,255,0.5)" : "rgba(20,25,40,0.7)";
+  });
+
+  bindHold('btnGas', v=> vehicleInput.gas = v);
+  bindHold('btnBrake', v=> vehicleInput.brake = v);
+  $('btnExitVehicle').addEventListener('touchstart', ()=> exitVehicle());
+}
+function bindHold(id, setter){
+  const el = $(id);
+  el.addEventListener('touchstart', ()=>setter(true));
+  el.addEventListener('touchend', ()=>setter(false));
+  el.addEventListener('touchcancel', ()=>setter(false));
+}
+
+const vehicleInput = { gas:false, brake:false };
+let velocityY = 0;
+let grounded = true;
+
+function tryToggleVehicle(){
+  if(currentVehicle){ exitVehicle(); return; }
+  // buscar vehículo cercano
+  let nearest = null, nd = 4;
+  parkedVehicles.forEach(v=>{
+    const d = v.position.distanceTo(localPlayer.position);
+    if(d < nd){ nd = d; nearest = v; }
+  });
+  if(nearest) enterVehicle(nearest);
+}
+function enterVehicle(v){
+  currentVehicle = v;
+  v.userData.parked = false;
+  localPlayer.visible = false;
+  input.crouch = false;
+  $('vehicleActions').classList.add('active');
+  $('footActions').style.display = 'none';
+  localAnim = "drive";
+}
+function exitVehicle(){
+  if(!currentVehicle) return;
+  localPlayer.position.copy(currentVehicle.position);
+  localPlayer.position.x += 1.2;
+  localPlayer.visible = true;
+  currentVehicle.userData.parked = true;
+  currentVehicle = null;
+  $('vehicleActions').classList.remove('active');
+  $('footActions').style.display = 'flex';
+  localAnim = "idle";
+}
+
+let punchCooldownLocal = 0;
+function doPunch(){
+  if(isDead || currentVehicle) return;
+  if(punchCooldownLocal > 0) return;
+  punchCooldownLocal = 0.55;
+  localAnim = "punch";
+  if(socketReady){
+    try{ socket.send(JSON.stringify({type:"punch"})); }catch(e){}
+  }
+  setTimeout(()=>{ if(localAnim==="punch") localAnim="idle"; }, 400);
+}
+
+function flashDamage(){
+  const hpBar = $('hpBar');
+  hpBar.style.filter = "brightness(2)";
+  setTimeout(()=> hpBar.style.filter = "", 150);
+}
+function updateHPUI(){
+  $('hpBar').style.width = Math.max(0,localHP)+"%";
+}
+
+// =======================================================================
+// LOOP PRINCIPAL DEL MUNDO
+// =======================================================================
+function animateWorld(){
+  requestAnimationFrame(animateWorld);
+  if(!worldReady) return;
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  if(punchCooldownLocal>0) punchCooldownLocal -= dt;
+
+  updateTraffic(dt);
+  updateNPCs(dt, t);
+  updateLocalPlayer(dt, t);
+  updateRemotePlayers(dt, t);
+  updateCamera(dt);
+
+  cityRenderer.render(cityScene, cityCamera);
+}
+
+function updateLocalPlayer(dt, t){
+  if(isDead){
+    localAnim = "dead";
+    animateCharacter(localPlayer, {anim:localAnim}, t);
+    return;
+  }
+
+  if(currentVehicle){
+    // conducir vehículo simple
+    let speed = 0;
+    if(vehicleInput.gas) speed = 8;
+    if(vehicleInput.brake) speed = -4;
+    if(!isTouchDevice()){
+      if(keys['w']) speed = 8;
+      if(keys['s']) speed = -4;
+      if(keys['a']) currentVehicle.rotation.y += 1.6*dt;
+      if(keys['d']) currentVehicle.rotation.y -= 1.6*dt;
+    }
+    currentVehicle.position.x += Math.sin(currentVehicle.rotation.y)*speed*dt;
+    currentVehicle.position.z += Math.cos(currentVehicle.rotation.y)*speed*dt;
+    currentVehicle.position.x = Math.max(-STREET_HALF, Math.min(STREET_HALF, currentVehicle.position.x));
+    currentVehicle.position.z = Math.max(-STREET_HALF, Math.min(STREET_HALF, currentVehicle.position.z));
+    lastSentX = currentVehicle.position.x;
+    lastSentZ = currentVehicle.position.z;
+    lastSentRot = currentVehicle.rotation.y;
+    lastSentAnim = "drive";
+    return;
+  }
+
+  // Movimiento a pie
+  let mx = input.moveX, mz = input.moveZ;
+  let running = input.run;
+  if(!isTouchDevice()){
+    mx = 0; mz = 0;
+    if(keys['w']) mz = -1;
+    if(keys['s']) mz = 1;
+    if(keys['a']) mx = -1;
+    if(keys['d']) mx = 1;
+    running = keys['shift'];
+  }
+
+  const moving = Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05;
+  const crouching = input.crouch && grounded; // no tiene sentido agacharse en el aire
+  // Agachado no se puede correr: prioridad al crouch sobre el sprint
+  if(crouching) running = false;
+  const speed = crouching ? 1.3 : (running ? 5.2 : 2.6);
+
+  if(moving){
+    // mover en relación a la cámara
+    const forward = new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw));
+    const right = new THREE.Vector3(Math.cos(camYaw), 0, -Math.sin(camYaw));
+    const move = new THREE.Vector3();
+    move.addScaledVector(right, mx);
+    move.addScaledVector(forward, -mz);
+    if(move.lengthSq() > 0){
+      move.normalize();
+      localPlayer.position.x += move.x*speed*dt;
+      localPlayer.position.z += move.z*speed*dt;
+      const targetRot = Math.atan2(move.x, move.z);
+      localPlayer.rotation.y = targetRot;
+    }
+    localAnim = crouching ? "crouchWalk" : (running ? "run" : "walk");
+  } else if(crouching){
+    localAnim = "crouch";
+  } else if(localAnim !== "punch" && localAnim !== "jump"){
+    localAnim = "idle";
+  }
+
+  // salto simple (no se puede saltar estando agachado)
+  if(input.jump && grounded && !crouching){
+    velocityY = 5.2;
+    grounded = false;
+    localAnim = "jump";
+    input.jump = false;
+  } else if(input.jump){
+    input.jump = false; // descarta el salto pendiente si estaba agachado
+  }
+  velocityY -= 12*dt;
+  localPlayer.position.y += velocityY*dt;
+  if(localPlayer.position.y <= 0){
+    localPlayer.position.y = 0;
+    velocityY = 0;
+    if(!grounded){ grounded = true; if(localAnim==="jump") localAnim = moving ? (running?"run":"walk") : "idle"; }
+  }
+
+  localPlayer.position.x = Math.max(-STREET_HALF, Math.min(STREET_HALF, localPlayer.position.x));
+  localPlayer.position.z = Math.max(-STREET_HALF, Math.min(STREET_HALF, localPlayer.position.z));
+
+  animateCharacter(localPlayer, {anim:localAnim}, t);
+
+  lastSentX = localPlayer.position.x;
+  lastSentZ = localPlayer.position.z;
+  lastSentRot = localPlayer.rotation.y;
+  lastSentAnim = localAnim;
+
+  // stamina visual simple (decorativa, ligada a correr)
+  const stam = $('staminaBar');
+  if(running && moving) stam.style.width = Math.max(10, parseFloat(stam.style.width||100) - 20*dt) + "%";
+  else stam.style.width = Math.min(100, parseFloat(stam.style.width||100) + 15*dt) + "%";
+}
+
+function updateRemotePlayers(dt, t){
+  remotePlayers.forEach(rp=>{
+    // interpolación suave hacia la posición objetivo del servidor
+    const g = rp.group;
+    g.position.x += (rp.target.x - g.position.x) * Math.min(1, dt*8);
+    g.position.z += (rp.target.z - g.position.z) * Math.min(1, dt*8);
+    g.position.y = rp.target.y;
+    let dRot = rp.target.rotY - g.rotation.y;
+    dRot = Math.atan2(Math.sin(dRot), Math.cos(dRot));
+    g.rotation.y += dRot * Math.min(1, dt*8);
+    animateCharacter(g, {anim: rp.dead ? "dead" : rp.anim}, t + rp.t);
+    rp.t += dt;
+  });
+}
+
+function updateCamera(dt){
+  const target = currentVehicle ? currentVehicle.position : localPlayer.position;
+  const camHeight = currentVehicle ? 2.6 : 1.6;
+  const dist = currentVehicle ? camDistance+2 : camDistance;
+  const offsetX = Math.sin(camYaw)*Math.cos(camPitch)*dist;
+  const offsetZ = Math.cos(camYaw)*Math.cos(camPitch)*dist;
+  const offsetY = Math.sin(camPitch)*dist + camHeight;
+
+  const desired = new THREE.Vector3(target.x - offsetX, offsetY, target.z - offsetZ);
+  cityCamera.position.lerp(desired, Math.min(1, dt*6));
+  cityCamera.lookAt(target.x, target.y + camHeight*0.6, target.z);
+}
+
+// =======================================================================
+// INICIALIZACIÓN GENERAL
+// =======================================================================
+initMenuScene();
+updateOnlineUI();
+updateHPUI();
+</script>
+</body>
+</html>
