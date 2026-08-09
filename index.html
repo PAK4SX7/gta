@@ -1525,6 +1525,7 @@ const dragState = {active:false, lastX:0, lastY:0};
 // ENTRADA — MÓVIL (joystick + botones táctiles)
 // ============================================================
 const joystick = {active:false, dx:0, dy:0};
+let runHeld = false;
 const joyZone = document.getElementById('joystick-zone');
 const joyBase = document.getElementById('joystick-base');
 const joyKnob = document.getElementById('joystick-knob');
@@ -1642,6 +1643,35 @@ camZone.addEventListener('pointermove',(e)=>{
 });
 camZone.addEventListener('pointerup',(e)=>{if(e.pointerId===camPointerId) camPointerId=null;});
 camZone.addEventListener('pointercancel',()=>{camPointerId=null;});
+
+// ============================================================
+// BOTONES DE ACCIÓN MÓVILES (GOLPE / USAR / SALTAR / CORRER / AGACH.)
+// ============================================================
+function bindActionBtn(id, handler){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const fire = (e)=>{ if(isEditingControls()) return; e.preventDefault(); handler(); };
+  el.addEventListener('touchstart', fire, {passive:false});
+  el.addEventListener('pointerdown', (e)=>{ if(e.pointerType==='mouse') fire(e); }, {passive:false});
+  el.addEventListener('click', fire);
+}
+bindActionBtn('btn-punch', tryPunch);
+bindActionBtn('btn-interact', tryInteract);
+bindActionBtn('btn-jump', tryJumpOrVault);
+bindActionBtn('btn-crouch', tryToggleCrouch);
+const btnRunEl = document.getElementById('btn-run');
+if(btnRunEl){
+  const toggleRun = (e)=>{
+    if(isEditingControls()) return;
+    e.preventDefault();
+    if(player.crouching) return;
+    runHeld = !runHeld;
+    btnRunEl.classList.toggle('toggled', runHeld);
+  };
+  btnRunEl.addEventListener('touchstart', toggleRun, {passive:false});
+  btnRunEl.addEventListener('pointerdown', (e)=>{ if(e.pointerType==='mouse') toggleRun(e); }, {passive:false});
+  btnRunEl.addEventListener('click', toggleRun);
+}
 
 // ============================================================
 // EDITAR CONTROLES — mover/agrandar botones táctiles a gusto del jugador
