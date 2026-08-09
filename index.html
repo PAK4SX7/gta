@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>NORTOWN — Mundo Abierto</title>
+<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v3">
+  <title>NORTOWN — Mundo Abierto</title>
 
 <!-- ===== PWA: instalable como app ===== -->
 <link rel="manifest" href="manifest.json">
@@ -128,7 +129,7 @@ input{font-family:inherit;}
 /* ---------- JUEGO / HUD ---------- */
 #game-screen{background:#000;}
 #game-canvas{width:100%;height:100%;}
-#hud{position:fixed;inset:0;z-index:20;pointer-events:none;display:none;}
+#hud{position:fixed;inset:0;z-index:5;pointer-events:none;display:none;}
 #hud.active{display:block;}
 
 .hud-topleft{position:absolute;top:14px;left:14px;display:flex;flex-direction:column;gap:6px;}
@@ -159,14 +160,14 @@ input{font-family:inherit;}
 #damage-flash{position:fixed;inset:0;pointer-events:none;background:rgba(255,0,0,0);z-index:6;transition:background .1s;}
 
 /* ---------- CONTROLES MÓVILES ---------- */
-#mobile-controls{position:fixed;inset:0;z-index:25;pointer-events:none;display:none;touch-action:none;}
+#mobile-controls{position:fixed;inset:0;z-index:100;pointer-events:none;display:none;touch-action:none;}
 #mobile-controls.active{display:block;}
-#joystick-zone{position:absolute;left:0;bottom:0;width:45%;height:60%;pointer-events:auto;touch-action:none;}
+#joystick-zone{position:absolute;left:0;bottom:0;width:48%;height:65%;pointer-events:auto;touch-action:none;}
 #joystick-base{position:absolute;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);
   border:2px solid rgba(255,255,255,.25);display:none;}
 #joystick-knob{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(255,204,0,.55);
   border:2px solid rgba(255,204,0,.9);}
-#camera-zone{position:absolute;right:0;top:0;width:55%;height:70%;pointer-events:auto;touch-action:none;}
+#camera-zone{position:absolute;right:0;top:0;width:52%;height:75%;pointer-events:auto;touch-action:none;}
 
 .action-buttons{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;
   gap:10px;pointer-events:auto;}
@@ -221,9 +222,6 @@ input{font-family:inherit;}
   border:1px solid rgba(255,255,255,.25);overflow:hidden;margin:8px auto 0;}
 #stagger-msg .stagger-bar{height:100%;width:100%;background:linear-gradient(90deg,#ff9b3b,var(--accent));}
 
-/* En escritorio G.isMobile no activa #mobile-controls.
-   En móviles, incluso en landscape con viewport > 820px, los controles siguen visibles. */
-#mobile-controls.active{display:block !important;}
 
 /* ---------- EDITAR CONTROLES ---------- */
 body.control-edit-mode .action-buttons{
@@ -547,6 +545,28 @@ function loadProfile(){
   }catch(e){}
 }
 loadProfile();
+
+// ============================================================
+// CONTROLES TÁCTILES — ACTIVACIÓN ROBUSTA
+// ============================================================
+function deviceHasTouch(){
+  return ('ontouchstart' in window) ||
+    (navigator.maxTouchPoints || 0) > 0 ||
+    (navigator.msMaxTouchPoints || 0) > 0 ||
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+    window.matchMedia('(pointer: coarse)').matches;
+}
+function forceMobileControls(){
+  const controls = document.getElementById('mobile-controls');
+  if(!controls) return;
+  const gameScreen = document.getElementById('game-screen');
+  const gameVisible = gameScreen && gameScreen.classList.contains('active');
+  if(gameVisible && deviceHasTouch()) controls.classList.add('active');
+  else if(!gameVisible) controls.classList.remove('active');
+}
+window.addEventListener('resize', forceMobileControls, {passive:true});
+window.addEventListener('orientationchange', ()=>setTimeout(forceMobileControls,150), {passive:true});
+setTimeout(forceMobileControls, 500);
 
 // ============================================================
 // ORIENTACIÓN
@@ -1019,9 +1039,11 @@ function startLoading(){
       setTimeout(()=>{
         switchScreen('game-screen');
         document.getElementById('hud').classList.add('active');
-        if(G.isMobile) document.getElementById('mobile-controls').classList.add('active');
+        forceMobileControls();
         document.getElementById('hud-name').textContent = G.name;
         enterWorld();
+        setTimeout(forceMobileControls, 100);
+        setTimeout(forceMobileControls, 700);
       }, 250);
     }
   }, 140);
@@ -1481,73 +1503,42 @@ joyZone.addEventListener('touchend', endJoy, {passive:true});
 joyZone.addEventListener('touchcancel', endJoy, {passive:true});
 
 const camZone = document.getElementById('camera-zone');
-let camTouchId=null, camLastX=0, camLastY=0;
-
+let camTouchId=null, camLastX=0, camLastY=0, camPointerId=null;
+function cameraDelta(dx,dy){
+  if(isEditingControls()) return;
+  camState.yaw -= dx*0.006;
+  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004, 0.05, 1.2);
+}
 camZone.addEventListener('touchstart',(e)=>{
   if(isEditingControls()) return;
   e.preventDefault();
-  const t=e.changedTouches[0];
-  camTouchId=t.identifier;
-  camLastX=t.clientX;
-  camLastY=t.clientY;
+  const t=e.changedTouches[0]; camTouchId=t.identifier; camLastX=t.clientX; camLastY=t.clientY;
 },{passive:false});
-
 camZone.addEventListener('touchmove',(e)=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     if(t.identifier!==camTouchId) continue;
-    const dx=t.clientX-camLastX;
-    const dy=t.clientY-camLastY;
-    camState.yaw -= dx*0.006;
-    camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004, 0.05, 1.2);
-    camLastX=t.clientX;
-    camLastY=t.clientY;
+    cameraDelta(t.clientX-camLastX,t.clientY-camLastY);
+    camLastX=t.clientX; camLastY=t.clientY;
   }
 },{passive:false});
-
 camZone.addEventListener('touchend',(e)=>{
   e.preventDefault();
-  for(const t of e.changedTouches){
-    if(t.identifier===camTouchId) camTouchId=null;
-  }
+  for(const t of e.changedTouches) if(t.identifier===camTouchId) camTouchId=null;
 },{passive:false});
-
-camZone.addEventListener('touchcancel',(e)=>{
-  e.preventDefault();
-  camTouchId=null;
-},{passive:false});
-
-let runHeld = false, jumpHeld = false, punchHeld = false, interactHeld = false;
-function isEditingControls(){ return document.body.classList.contains('control-edit-mode'); }
-
-function bindHold(id, onDown, onUp){
-  const el = document.getElementById(id);
-  const guardedDown = (...a)=>{ if(isEditingControls()) return; onDown(...a); };
-  el.addEventListener('touchstart', (e)=>{e.preventDefault(); guardedDown();}, {passive:false});
-  el.addEventListener('touchend', (e)=>{e.preventDefault(); if(onUp) onUp();}, {passive:false});
-  el.addEventListener('mousedown', guardedDown);
-  window.addEventListener('mouseup', ()=>{ if(onUp) onUp(); });
-}
-bindHold('btn-punch', ()=>tryPunch());
-bindHold('btn-jump', ()=>tryJumpOrVault());
-bindHold('btn-interact', ()=>tryInteract());
-bindHold('btn-run', ()=>{ runHeld = !runHeld; document.getElementById('btn-run').classList.toggle('toggled', runHeld); });
-bindHold('btn-crouch', ()=>tryToggleCrouch());
-
-// controles de vehículo (móvil)
-let vehInput = {accel:false, brake:false, left:false, right:false};
-function bindVehBtn(id, key){
-  const el = document.getElementById(id);
-  const set = v => vehInput[key] = v;
-  el.addEventListener('touchstart', e=>{e.preventDefault(); set(true);}, {passive:false});
-  el.addEventListener('touchend', e=>{e.preventDefault(); set(false);}, {passive:false});
-  el.addEventListener('mousedown', ()=>set(true));
-  window.addEventListener('mouseup', ()=>set(false));
-}
-bindVehBtn('veh-accel','accel'); bindVehBtn('veh-brake','brake');
-bindVehBtn('veh-left','left'); bindVehBtn('veh-right','right');
-document.getElementById('veh-exit').addEventListener('click', ()=>exitVehicle());
-document.getElementById('veh-exit').addEventListener('touchstart', (e)=>{e.preventDefault(); exitVehicle();}, {passive:false});
+camZone.addEventListener('touchcancel',()=>{camTouchId=null;},{passive:true});
+camZone.addEventListener('pointerdown',(e)=>{
+  if(e.pointerType==='mouse' || isEditingControls()) return;
+  e.preventDefault(); camPointerId=e.pointerId; camLastX=e.clientX; camLastY=e.clientY;
+  try{camZone.setPointerCapture(e.pointerId);}catch(_){ }
+});
+camZone.addEventListener('pointermove',(e)=>{
+  if(e.pointerId!==camPointerId) return;
+  e.preventDefault(); cameraDelta(e.clientX-camLastX,e.clientY-camLastY);
+  camLastX=e.clientX; camLastY=e.clientY;
+});
+camZone.addEventListener('pointerup',(e)=>{if(e.pointerId===camPointerId) camPointerId=null;});
+camZone.addEventListener('pointercancel',()=>{camPointerId=null;});
 
 // ============================================================
 // EDITAR CONTROLES — mover/agrandar botones táctiles a gusto del jugador
