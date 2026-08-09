@@ -129,7 +129,7 @@ input{font-family:inherit;}
 /* ---------- JUEGO / HUD ---------- */
 #game-screen{background:#000;}
 #game-canvas{width:100%;height:100%;}
-#hud{position:fixed;inset:0;z-index:5;pointer-events:none;display:none;}
+#hud{position:fixed;inset:0;z-index:50;pointer-events:none;display:none;}
 #hud.active{display:block;}
 
 .hud-topleft{position:absolute;top:14px;left:14px;display:flex;flex-direction:column;gap:6px;}
@@ -157,7 +157,7 @@ input{font-family:inherit;}
   background:rgba(0,0,0,.55);padding:6px 14px;border-radius:8px;font-size:12px;display:none;}
 #interact-hint.show{display:block;}
 
-#damage-flash{position:fixed;inset:0;pointer-events:none;background:rgba(255,0,0,0);z-index:6;transition:background .1s;}
+#damage-flash{position:fixed;inset:0;pointer-events:none;background:rgba(255,0,0,0);z-index:55;transition:background .1s;}
 
 /* ---------- CONTROLES MÓVILES ---------- */
 #mobile-controls{position:fixed;inset:0;z-index:99999;pointer-events:none;display:none;touch-action:none;}
@@ -385,6 +385,10 @@ body.control-edit-mode #joystick-zone{background:rgba(0,229,255,.06); outline:2p
     <label>Tamaño del joystick</label>
     <input type="range" id="cep-scale-joy" min="0.7" max="1.6" step="0.05" value="1">
   </div>
+  <div class="cep-row">
+    <label>Sensibilidad de cámara</label>
+    <input type="range" id="cep-scale-cam" min="0.3" max="2.5" step="0.05" value="1">
+  </div>
   <div class="cep-actions">
     <button class="cep-btn" id="cep-reset">Restablecer</button>
     <button class="cep-btn primary" id="cep-close">Guardar y salir</button>
@@ -563,6 +567,16 @@ function forceMobileControls(){
     controls.style.display = 'block';
     controls.style.pointerEvents = 'auto';
     controls.style.zIndex = '99999';
+    controls.style.position = 'fixed';
+    controls.style.inset = '0';
+    controls.style.visibility = 'visible';
+    controls.style.opacity = '1';
+    // refuerzo: por si el gate de instalación quedó bloqueando toques
+    const gate = document.getElementById('install-gate');
+    if(gate) gate.classList.add('hidden');
+    document.getElementById('hud').classList.add('active');
+    document.getElementById('hud').style.display = 'block';
+    document.getElementById('hud').style.zIndex = '50';
   }else{
     controls.classList.remove('active');
     controls.style.display = 'none';
@@ -1452,8 +1466,9 @@ window.addEventListener('mouseup', ()=>{ dragState.active = false; });
 window.addEventListener('mousemove', (e)=>{
   if(!dragState.active) return;
   const dx = e.clientX - dragState.lastX, dy = e.clientY - dragState.lastY;
-  camState.yaw -= dx*0.005;
-  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.003, 0.05, 1.2);
+  const sens = controlLayout.camSensitivity || 1;
+  camState.yaw -= dx*0.005*sens;
+  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.003*sens, 0.05, 1.2);
   dragState.lastX = e.clientX; dragState.lastY = e.clientY;
 });
 window.addEventListener('wheel', (e)=>{
@@ -1548,8 +1563,9 @@ const camZone = document.getElementById('camera-zone');
 let camTouchId=null, camLastX=0, camLastY=0, camPointerId=null;
 function cameraDelta(dx,dy){
   if(isEditingControls()) return;
-  camState.yaw -= dx*0.006;
-  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004, 0.05, 1.2);
+  const sens = controlLayout.camSensitivity || 1;
+  camState.yaw -= dx*0.006*sens;
+  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004*sens, 0.05, 1.2);
 }
 camZone.addEventListener('touchstart',(e)=>{
   if(isEditingControls()) return;
@@ -1589,9 +1605,9 @@ const CONTROL_LAYOUT_KEY = 'nortown_control_layout_v1';
 function loadControlLayout(){
   try{
     const saved = JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY));
-    if(saved && typeof saved === 'object') return Object.assign({btnScale:1, joyScale:1, pos:null}, saved);
+    if(saved && typeof saved === 'object') return Object.assign({btnScale:1, joyScale:1, camSensitivity:1, pos:null}, saved);
   }catch(e){}
-  return {btnScale:1, joyScale:1, pos:null};
+  return {btnScale:1, joyScale:1, camSensitivity:1, pos:null};
 }
 function saveControlLayout(){
   try{ localStorage.setItem(CONTROL_LAYOUT_KEY, JSON.stringify(controlLayout)); }catch(e){}
@@ -1642,6 +1658,7 @@ document.getElementById('btn-edit-controls').addEventListener('click', ()=>{
   if(editing){
     document.getElementById('cep-scale-buttons').value = controlLayout.btnScale;
     document.getElementById('cep-scale-joy').value = controlLayout.joyScale;
+    document.getElementById('cep-scale-cam').value = controlLayout.camSensitivity || 1;
   } else {
     saveControlLayout();
   }
@@ -1653,12 +1670,16 @@ document.getElementById('cep-scale-buttons').addEventListener('input', (e)=>{
 document.getElementById('cep-scale-joy').addEventListener('input', (e)=>{
   controlLayout.joyScale = parseFloat(e.target.value);
 });
+document.getElementById('cep-scale-cam').addEventListener('input', (e)=>{
+  controlLayout.camSensitivity = parseFloat(e.target.value);
+});
 document.getElementById('cep-reset').addEventListener('click', ()=>{
-  controlLayout = {btnScale:1, joyScale:1, pos:null};
+  controlLayout = {btnScale:1, joyScale:1, camSensitivity:1, pos:null};
   applyControlLayout();
   saveControlLayout();
   document.getElementById('cep-scale-buttons').value = 1;
   document.getElementById('cep-scale-joy').value = 1;
+  document.getElementById('cep-scale-cam').value = 1;
 });
 document.getElementById('cep-close').addEventListener('click', ()=>{
   document.body.classList.remove('control-edit-mode');
