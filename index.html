@@ -198,7 +198,7 @@ input{font-family:inherit;}
   border:2px solid rgba(255,255,255,.25);display:none;}
 #joystick-knob{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(255,204,0,.55);
   border:2px solid rgba(255,204,0,.9);}
-#camera-zone{position:absolute;right:0;top:0;width:52%;height:75%;pointer-events:auto;touch-action:none;}
+#camera-zone{position:absolute;right:0;top:76px;width:52%;height:calc(75% - 76px);pointer-events:auto;touch-action:none;}
 
 .action-buttons{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;
   gap:10px;pointer-events:auto;}
@@ -1681,7 +1681,7 @@ window.addEventListener('mousemove', (e)=>{
   if(!dragState.active) return;
   const dx = e.clientX - dragState.lastX, dy = e.clientY - dragState.lastY;
   const sens = controlLayout.camSensitivity || 1;
-  camState.yaw += dx*0.005*sens;
+  camState.yaw -= dx*0.005*sens;
   camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.003*sens, 0.05, 1.2);
   dragState.lastX = e.clientX; dragState.lastY = e.clientY;
 });
@@ -1782,7 +1782,7 @@ let camTouchId=null, camLastX=0, camLastY=0, camPointerId=null;
 function cameraDelta(dx,dy){
   if(isEditingControls()) return;
   const sens = controlLayout.camSensitivity || 1;
-  camState.yaw += dx*0.006*sens;
+  camState.yaw -= dx*0.006*sens;
   camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004*sens, 0.05, 1.2);
 }
 camZone.addEventListener('touchstart',(e)=>{
