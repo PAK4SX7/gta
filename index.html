@@ -192,7 +192,11 @@ input{font-family:inherit;}
 
 /* ---------- CONTROLES MÓVILES ---------- */
 #mobile-controls{position:fixed;inset:0;z-index:99999;pointer-events:none;display:none;touch-action:none;}
-#mobile-controls.active{display:block !important;pointer-events:auto !important;}
+/* OJO: el contenedor NO debe tener pointer-events:auto — si no, tapa (roba el toque)
+   a cualquier botón de #hud que quede debajo, aunque esté en una zona sin joystick/cámara.
+   Cada zona interactiva (joystick, cámara, botones de acción) ya tiene su propio
+   pointer-events:auto individual más abajo, así que el contenedor puede quedarse en 'none'. */
+#mobile-controls.active{display:block !important;}
 #joystick-zone{position:absolute;left:0;bottom:0;width:48%;height:65%;pointer-events:auto;touch-action:none;}
 #joystick-base{position:absolute;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);
   border:2px solid rgba(255,255,255,.25);display:none;}
@@ -439,6 +443,14 @@ body.control-edit-mode #joystick-zone{background:rgba(0,229,255,.06); outline:2p
   <div class="cep-row">
     <label>Sensibilidad de cámara</label>
     <input type="range" id="cep-scale-cam" min="0.3" max="2.5" step="0.05" value="1">
+  </div>
+  <div class="cep-row">
+    <label>Invertir cámara (lados)</label>
+    <input type="checkbox" id="cep-invert-cam">
+  </div>
+  <div class="cep-row">
+    <label>Invertir cámara (arriba/abajo)</label>
+    <input type="checkbox" id="cep-invert-cam-y">
   </div>
   <div class="cep-actions">
     <button class="cep-btn" id="cep-reset">Restablecer</button>
@@ -1681,8 +1693,10 @@ window.addEventListener('mousemove', (e)=>{
   if(!dragState.active) return;
   const dx = e.clientX - dragState.lastX, dy = e.clientY - dragState.lastY;
   const sens = controlLayout.camSensitivity || 1;
-  camState.yaw -= dx*0.005*sens;
-  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.003*sens, 0.05, 1.2);
+  const invX = controlLayout.camInvertX ? -1 : 1;
+  const invY = controlLayout.camInvertY ? -1 : 1;
+  camState.yaw -= dx*0.005*sens*invX;
+  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.003*sens*invY, 0.05, 1.2);
   dragState.lastX = e.clientX; dragState.lastY = e.clientY;
 });
 window.addEventListener('wheel', (e)=>{
@@ -1782,8 +1796,10 @@ let camTouchId=null, camLastX=0, camLastY=0, camPointerId=null;
 function cameraDelta(dx,dy){
   if(isEditingControls()) return;
   const sens = controlLayout.camSensitivity || 1;
-  camState.yaw -= dx*0.006*sens;
-  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004*sens, 0.05, 1.2);
+  const invX = controlLayout.camInvertX ? -1 : 1;
+  const invY = controlLayout.camInvertY ? -1 : 1;
+  camState.yaw -= dx*0.006*sens*invX;
+  camState.pitch = THREE.MathUtils.clamp(camState.pitch - dy*0.004*sens*invY, 0.05, 1.2);
 }
 camZone.addEventListener('touchstart',(e)=>{
   if(isEditingControls()) return;
@@ -1852,9 +1868,9 @@ const CONTROL_LAYOUT_KEY = 'nortown_control_layout_v1';
 function loadControlLayout(){
   try{
     const saved = JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY));
-    if(saved && typeof saved === 'object') return Object.assign({btnScale:1, joyScale:1, camSensitivity:1, pos:null}, saved);
+    if(saved && typeof saved === 'object') return Object.assign({btnScale:1, joyScale:1, camSensitivity:1, camInvertX:false, camInvertY:false, pos:null}, saved);
   }catch(e){}
-  return {btnScale:1, joyScale:1, camSensitivity:1, pos:null};
+  return {btnScale:1, joyScale:1, camSensitivity:1, camInvertX:false, camInvertY:false, pos:null};
 }
 function saveControlLayout(){
   try{ localStorage.setItem(CONTROL_LAYOUT_KEY, JSON.stringify(controlLayout)); }catch(e){}
@@ -1906,6 +1922,8 @@ document.getElementById('btn-edit-controls').addEventListener('click', ()=>{
     document.getElementById('cep-scale-buttons').value = controlLayout.btnScale;
     document.getElementById('cep-scale-joy').value = controlLayout.joyScale;
     document.getElementById('cep-scale-cam').value = controlLayout.camSensitivity || 1;
+    document.getElementById('cep-invert-cam').checked = !!controlLayout.camInvertX;
+    document.getElementById('cep-invert-cam-y').checked = !!controlLayout.camInvertY;
   } else {
     saveControlLayout();
   }
@@ -1920,13 +1938,23 @@ document.getElementById('cep-scale-joy').addEventListener('input', (e)=>{
 document.getElementById('cep-scale-cam').addEventListener('input', (e)=>{
   controlLayout.camSensitivity = parseFloat(e.target.value);
 });
+document.getElementById('cep-invert-cam').addEventListener('change', (e)=>{
+  controlLayout.camInvertX = e.target.checked;
+  saveControlLayout();
+});
+document.getElementById('cep-invert-cam-y').addEventListener('change', (e)=>{
+  controlLayout.camInvertY = e.target.checked;
+  saveControlLayout();
+});
 document.getElementById('cep-reset').addEventListener('click', ()=>{
-  controlLayout = {btnScale:1, joyScale:1, camSensitivity:1, pos:null};
+  controlLayout = {btnScale:1, joyScale:1, camSensitivity:1, camInvertX:false, camInvertY:false, pos:null};
   applyControlLayout();
   saveControlLayout();
   document.getElementById('cep-scale-buttons').value = 1;
   document.getElementById('cep-scale-joy').value = 1;
   document.getElementById('cep-scale-cam').value = 1;
+  document.getElementById('cep-invert-cam').checked = false;
+  document.getElementById('cep-invert-cam-y').checked = false;
 });
 document.getElementById('cep-close').addEventListener('click', ()=>{
   document.body.classList.remove('control-edit-mode');
@@ -2103,6 +2131,36 @@ function resolveCollisions(nextPos){
   return nextPos;
 }
 
+// Colisión simple tipo "círculo" para que el jugador no atraviese a otros
+// jugadores ni a los NPCs peatones (antes los traspasaba de largo).
+const CHAR_COLLIDE_DIST = 0.68;
+function resolveCharacterCollisions(pos){
+  G.remotePlayers.forEach((rp)=>{
+    if(!rp.group) return;
+    const dx = pos.x - rp.group.position.x;
+    const dz = pos.z - rp.group.position.z;
+    const distSq = dx*dx + dz*dz;
+    if(distSq < CHAR_COLLIDE_DIST*CHAR_COLLIDE_DIST && distSq > 0.000001){
+      const dist = Math.sqrt(distSq);
+      const push = (CHAR_COLLIDE_DIST - dist);
+      pos.x += (dx/dist)*push;
+      pos.z += (dz/dist)*push;
+    }
+  });
+  for(const n of npcPeople){
+    if(n.launched || n.recoverTimer > 0) continue; // no chocar con alguien ya volando/recuperándose
+    const dx = pos.x - n.group.position.x;
+    const dz = pos.z - n.group.position.z;
+    const distSq = dx*dx + dz*dz;
+    if(distSq < CHAR_COLLIDE_DIST*CHAR_COLLIDE_DIST && distSq > 0.000001){
+      const dist = Math.sqrt(distSq);
+      const push = (CHAR_COLLIDE_DIST - dist);
+      pos.x += (dx/dist)*push;
+      pos.z += (dz/dist)*push;
+    }
+  }
+}
+
 function updatePlayer(dt){
   if(player.dead) return;
 
@@ -2206,6 +2264,7 @@ function updatePlayer(dt){
   else { player.grounded = false; if(player.vel.y < -1 && player.animState!=='jump') player.animState = 'fall'; }
 
   resolveCollisions(player.pos);
+  resolveCharacterCollisions(player.pos);
 
   // límites del mundo
   const LIM = 165;
