@@ -175,6 +175,7 @@ input{font-family:inherit;}
 .abtn:active{background:rgba(255,204,0,.35);}
 #btn-punch{width:74px;height:74px;font-size:12px;background:rgba(255,59,59,.35);border-color:rgba(255,59,59,.7);}
 #btn-run.toggled{background:rgba(0,229,255,.4);border-color:var(--accent2);}
+#btn-crouch.toggled{background:rgba(255,204,0,.4);border-color:var(--accent);}
 .abtn-row{display:flex;gap:10px;}
 
 /* controles vehículo */
@@ -186,11 +187,14 @@ input{font-family:inherit;}
   color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 #veh-exit{background:rgba(255,59,59,.35);border-color:rgba(255,59,59,.7);width:56px;height:56px;border-radius:50%;}
 
-/* ---------- BOTÓN MOCHILA (en juego) ---------- */
-.hud-inv-btn{position:absolute;top:14px;left:50%;transform:translateX(-50%);pointer-events:auto;
-  background:rgba(20,24,32,.75);border:2px solid rgba(255,204,0,.5);color:#fff;
-  padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;letter-spacing:1px;}
-.hud-inv-btn:active{background:rgba(255,204,0,.35);}
+/* ---------- BOTONES SUPERIORES (mochila / menú / editar controles) ---------- */
+.hud-top-btns{position:absolute;top:14px;left:50%;transform:translateX(-50%);pointer-events:auto;
+  display:flex;gap:8px;align-items:center;}
+.hud-top-btns button{background:rgba(20,24,32,.75);border:2px solid rgba(255,204,0,.5);color:#fff;
+  padding:8px 14px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:1px;white-space:nowrap;}
+.hud-top-btns button:active{background:rgba(255,204,0,.35);}
+#btn-open-menu{border-color:rgba(255,255,255,.3) !important;}
+#btn-edit-controls{border-color:var(--accent2) !important;}
 
 /* ---------- MOCHILA / INVENTARIO ---------- */
 #inventory-panel{position:fixed;inset:0;z-index:25;display:none;flex-direction:column;
@@ -220,6 +224,25 @@ input{font-family:inherit;}
 @media (min-width:820px){
   #mobile-controls{display:none !important;}
 }
+
+/* ---------- EDITAR CONTROLES ---------- */
+body.control-edit-mode .action-buttons{
+  outline:2px dashed var(--accent2); border-radius:20px; padding:6px; cursor:grab; touch-action:none;
+}
+body.control-edit-mode .action-buttons:active{cursor:grabbing;}
+body.control-edit-mode #joystick-zone{background:rgba(0,229,255,.06); outline:2px dashed var(--accent2);}
+#control-edit-panel{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;flex-direction:column;gap:12px;
+  background:var(--panel);border-top:1px solid var(--panel-border);
+  padding:14px 18px calc(14px + env(safe-area-inset-bottom));}
+#control-edit-panel.active{display:flex;}
+.cep-title{font-size:12px;letter-spacing:1px;color:var(--accent);font-weight:700;}
+.cep-hint{font-size:11px;opacity:.7;margin-top:-6px;}
+.cep-row{display:flex;align-items:center;gap:10px;font-size:12px;}
+.cep-row label{min-width:120px;opacity:.85;}
+.cep-row input[type=range]{flex:1;accent-color:var(--accent);}
+.cep-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}
+.cep-btn{padding:9px 18px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(255,255,255,.1);color:#fff;}
+.cep-btn.primary{background:linear-gradient(180deg,var(--accent),#b98d00);color:#1a1300;}
 </style>
 </head>
 <body>
@@ -317,7 +340,11 @@ input{font-family:inherit;}
     <div class="stagger-bar-wrap"><div class="stagger-bar" id="stagger-bar"></div></div>
   </div>
   <div id="interact-hint">Pulsa E / INTERACTUAR</div>
-  <button class="hud-inv-btn" id="btn-open-inventory">🎒 MOCHILA</button>
+  <div class="hud-top-btns">
+    <button id="btn-open-menu">☰ MENÚ</button>
+    <button id="btn-open-inventory">🎒 MOCHILA</button>
+    <button id="btn-edit-controls">⚙ CONTROLES</button>
+  </div>
 </div>
 <div id="damage-flash"></div>
 
@@ -338,12 +365,31 @@ input{font-family:inherit;}
   </div>
   <div id="camera-zone"></div>
   <div class="action-buttons">
-    <button class="abtn" id="btn-punch">PUÑO</button>
+    <button class="abtn" id="btn-punch">👊<br>GOLPE</button>
     <div class="abtn-row">
       <button class="abtn" id="btn-interact">USAR</button>
       <button class="abtn" id="btn-jump">SALTAR</button>
       <button class="abtn" id="btn-run">CORRER</button>
+      <button class="abtn" id="btn-crouch">AGACH.</button>
     </div>
+  </div>
+</div>
+
+<!-- ============ PANEL: EDITAR CONTROLES ============ -->
+<div id="control-edit-panel">
+  <div class="cep-title">EDITAR CONTROLES</div>
+  <div class="cep-hint">Arrastra el grupo de botones a donde quieras. Usa los deslizadores para el tamaño.</div>
+  <div class="cep-row">
+    <label>Tamaño de botones</label>
+    <input type="range" id="cep-scale-buttons" min="0.7" max="1.5" step="0.05" value="1">
+  </div>
+  <div class="cep-row">
+    <label>Tamaño del joystick</label>
+    <input type="range" id="cep-scale-joy" min="0.7" max="1.6" step="0.05" value="1">
+  </div>
+  <div class="cep-actions">
+    <button class="cep-btn" id="cep-reset">Restablecer</button>
+    <button class="cep-btn primary" id="cep-close">Guardar y salir</button>
   </div>
 </div>
 
@@ -385,7 +431,14 @@ const G = {
   remotePlayers: new Map(), // id -> {group, target:{x,y,z,ry}, hp, name, anim}
   clock: null,
   time: 0,
+  clockOffset: 0, // diferencia entre la hora del servidor y la hora local (para sincronizar tráfico/NPCs entre jugadores)
 };
+
+// Hora "de mundo" sincronizada con el servidor: todos los clientes conectados
+// calculan la MISMA posición para autos/peatones/semáforos usando esta hora,
+// en vez de acumular su propio tiempo local (que haría que cada jugador viera
+// el tráfico en un lugar distinto).
+function syncedNow(){ return (Date.now() + G.clockOffset) / 1000; }
 
 const OPTIONS = {
   skinColors:   [0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0xffe0bd],
@@ -671,6 +724,21 @@ function animateCharacter(charGroup, dt){
       armLRotX = -Math.sin(f)*0.45; armRRotX = Math.sin(f)*0.45;
       break;
     }
+    case 'crouch': {
+      bob = Math.sin(t*1.4)*0.01;
+      targetTorsoRotX = 0.32;
+      legLRotX = 0.55; legRRotX = 0.55;
+      armLRotX = 0.15; armRRotX = -0.15;
+      break;
+    }
+    case 'crouchWalk': {
+      const f = t*6;
+      bob = Math.abs(Math.sin(f))*0.02;
+      targetTorsoRotX = 0.32;
+      legLRotX = 0.55 + Math.sin(f)*0.35; legRRotX = 0.55 - Math.sin(f)*0.35;
+      armLRotX = -Math.sin(f)*0.3; armRRotX = Math.sin(f)*0.3;
+      break;
+    }
     case 'run': {
       const f = t*13;
       bob = Math.abs(Math.sin(f))*0.06;
@@ -751,7 +819,8 @@ function animateCharacter(charGroup, dt){
   p.rig.rotation.x = THREE.MathUtils.lerp(p.rig.rotation.x, 0, lerpAmt);
   p.rig.position.y = THREE.MathUtils.lerp(p.rig.position.y, 0, lerpAmt);
 
-  p.torso.position.y = 0.95 + bob;
+  const crouchDrop = (state === 'crouch' || state === 'crouchWalk') ? 0.22 : 0;
+  p.torso.position.y = THREE.MathUtils.lerp(p.torso.position.y, 0.95 - crouchDrop + bob, 0.3);
   p.torso.rotation.x = THREE.MathUtils.lerp(p.torso.rotation.x, targetTorsoRotX, 0.25);
   p.armL.rotation.x = THREE.MathUtils.lerp(p.armL.rotation.x, armLRotX, 0.35);
   p.armR.rotation.x = THREE.MathUtils.lerp(p.armR.rotation.x, armRRotX, 0.35);
@@ -902,7 +971,8 @@ document.getElementById('btn-inv-edit').addEventListener('click', ()=>{
 });
 function isUiPanelOpen(){
   return vestidorPanel.classList.contains('active') ||
-    document.getElementById('inventory-panel').classList.contains('active');
+    document.getElementById('inventory-panel').classList.contains('active') ||
+    document.body.classList.contains('control-edit-mode');
 }
 
 // ============================================================
@@ -1129,6 +1199,19 @@ function makeStreetlight(){
   return g;
 }
 
+// Ciclo fijo de un semáforo: ROJO 4.5s -> AMARILLO 1.5s -> VERDE 4.5s -> repite.
+// Se calcula directamente a partir de la hora sincronizada (syncedNow), así que
+// da exactamente el mismo resultado en todos los jugadores conectados.
+const TLIGHT_CYCLE = 10.5;
+function trafficLightStateAt(phaseSec, tSec){
+  let t = ((tSec + phaseSec) % TLIGHT_CYCLE + TLIGHT_CYCLE) % TLIGHT_CYCLE;
+  if(t < 4.5) return 0;      // rojo
+  t -= 4.5;
+  if(t < 1.5) return 1;      // amarillo
+  return 2;                  // verde
+}
+
+let trafficLightCount = 0;
 function makeTrafficLight(x,z){
   const g = new THREE.Group();
   g.position.set(x,0,z);
@@ -1147,7 +1230,10 @@ function makeTrafficLight(x,z){
     return s;
   });
   scene.add(g);
-  return {group:g, lights, state:0, timer:Math.random()*4};
+  // fase fija (no aleatoria) según el orden de creación, para que todos los
+  // jugadores vean el mismo semáforo en el mismo color en todo momento.
+  const phase = (trafficLightCount++) * 3.1;
+  return {group:g, lights, state:0, phase};
 }
 
 function makeCar(color){
@@ -1185,7 +1271,13 @@ function makeNPCPerson(i){
   ];
   char.position.copy(wp[0]);
   scene.add(char);
-  return {group:char, waypoints:wp, target:1, speed:0.9 + (i%3)*0.3,
+  // velocidad y fase FIJAS (según el índice, no aleatorias) para que su
+  // recorrido de ida y vuelta sea idéntico en todos los jugadores conectados.
+  const speed = 0.9 + (i%3)*0.3;
+  const pathLen = wp[0].distanceTo(wp[1]);
+  const period = pathLen > 0 ? (pathLen*2)/speed : 1;
+  const phase = (i*0.531) % Math.max(period,0.001);
+  return {group:char, waypoints:wp, speed, pathLen, period, phase,
     launched:false, launchVel:new THREE.Vector3(), launchBounces:0, recoverTimer:0};
 }
 
@@ -1201,7 +1293,11 @@ function makeNPCCar(i){
   car.position.copy(lane.p1);
   car.lookAt(lane.p2);
   scene.add(car);
-  return {group:car, p1:lane.p1, p2:lane.p2, laneLength:lane.p1.distanceTo(lane.p2), t:Math.random(), speed:0.06 + Math.random()*0.03};
+  // t inicial y velocidad FIJAS (según el índice, no aleatorias): así el auto
+  // recorre su carril exactamente igual para cualquier jugador que lo mire.
+  const speed = 0.06 + (i%3)*0.01;
+  const phase = (i*0.371) % 1;
+  return {group:car, p1:lane.p1, p2:lane.p2, laneLength:lane.p1.distanceTo(lane.p2), t:phase, speed, phase};
 }
 
 buildCity();
@@ -1221,6 +1317,7 @@ const player = {
   inVehicle: null,
   animState: 'idle',
   vaulting: false,
+  crouching: false,
   // --- aturdimiento por combate (varios golpes seguidos) ---
   staggered: false,
   staggerTimer: 0,
@@ -1257,6 +1354,40 @@ function enterWorld(){
   showToast('BIENVENIDO, ' + G.name);
 }
 
+function returnToMenu(){
+  G.playing = false;
+  if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if(G.ws){
+    try{ G.ws.onclose = null; G.ws.close(); }catch(e){}
+    G.ws = null;
+  }
+  G.wsConnected = false;
+  // limpiar jugadores remotos de la escena
+  G.remotePlayers.forEach(rp=> scene.remove(rp.group));
+  G.remotePlayers.clear();
+  // resetear estado local del jugador
+  player.dead = false; player.hp = 100; player.stamina = 100;
+  player.staggered = false; player.staggerTimer = 0;
+  player.launched = false; player.groggy = false; player.groggyTimer = 0;
+  player.crouching = false; player.running = false;
+  if(player.inVehicle){ player.inVehicle.occupied = false; player.inVehicle = null; }
+  G.playerChar.visible = true;
+  player.animState = 'idle';
+  hideIncapacitatedHud();
+  document.getElementById('center-msg').classList.add('hidden');
+  document.getElementById('inventory-panel').classList.remove('active');
+  vestidorPanel.classList.remove('active');
+  document.body.classList.remove('control-edit-mode');
+  document.getElementById('control-edit-panel').classList.remove('active');
+  document.getElementById('hud').classList.remove('active');
+  document.getElementById('mobile-controls').classList.remove('active');
+  document.getElementById('vehicle-controls').classList.remove('active');
+  switchScreen('main-menu');
+}
+document.getElementById('btn-open-menu').addEventListener('click', ()=>{
+  if(confirm('¿Volver al menú principal? Se cerrará la partida actual.')) returnToMenu();
+});
+
 function showToast(text){
   const msg = document.getElementById('interact-hint');
   msg.textContent = text;
@@ -1281,6 +1412,8 @@ window.addEventListener('keydown', (e)=>{
   if(e.code === 'KeyE') tryInteract();
   if(e.code === 'KeyF') tryInteract();
   if(e.code === 'KeyI' && G.playing) openInventory();
+  if(e.code === 'KeyC' && G.playing) tryToggleCrouch();
+  if(e.code === 'ControlLeft' && G.playing) tryToggleCrouch();
 });
 window.addEventListener('keyup', (e)=>{ keys[e.code] = false; });
 window.addEventListener('mousedown', (e)=>{
@@ -1311,22 +1444,29 @@ const joyKnob = document.getElementById('joystick-knob');
 let joyTouchId = null, joyOriginX=0, joyOriginY=0;
 
 joyZone.addEventListener('touchstart', (e)=>{
+  if(isEditingControls()) return;
   const t = e.changedTouches[0];
   joyTouchId = t.identifier;
   joyOriginX = t.clientX; joyOriginY = t.clientY;
+  const s = controlLayout.joyScale || 1;
+  const baseSize = 100*s, knobSize = 44*s, half = baseSize/2, half2 = knobSize/2;
+  joyBase.style.width = baseSize+'px'; joyBase.style.height = baseSize+'px';
+  joyKnob.style.width = knobSize+'px'; joyKnob.style.height = knobSize+'px';
   joyBase.style.display = 'block';
-  joyBase.style.left = (t.clientX-50)+'px'; joyBase.style.top = (t.clientY-50)+'px';
-  joyKnob.style.left = '28px'; joyKnob.style.top='28px';
+  joyBase.style.left = (t.clientX-half)+'px'; joyBase.style.top = (t.clientY-half)+'px';
+  joyKnob.style.left = (half-half2)+'px'; joyKnob.style.top = (half-half2)+'px';
   joystick.active = true;
 }, {passive:true});
 joyZone.addEventListener('touchmove', (e)=>{
   for(const t of e.changedTouches){
     if(t.identifier !== joyTouchId) continue;
     let dx = t.clientX - joyOriginX, dy = t.clientY - joyOriginY;
-    const max = 46;
+    const s = controlLayout.joyScale || 1;
+    const max = 46*s;
+    const half = (100*s)/2, half2 = (44*s)/2;
     const len = Math.hypot(dx,dy);
     if(len > max){ dx = dx/len*max; dy = dy/len*max; }
-    joyKnob.style.left = (28+dx)+'px'; joyKnob.style.top = (28+dy)+'px';
+    joyKnob.style.left = (half-half2+dx)+'px'; joyKnob.style.top = (half-half2+dy)+'px';
     joystick.dx = dx/max; joystick.dy = dy/max;
   }
 }, {passive:true});
@@ -1359,17 +1499,21 @@ camZone.addEventListener('touchend',(e)=>{
 },{passive:true});
 
 let runHeld = false, jumpHeld = false, punchHeld = false, interactHeld = false;
+function isEditingControls(){ return document.body.classList.contains('control-edit-mode'); }
+
 function bindHold(id, onDown, onUp){
   const el = document.getElementById(id);
-  el.addEventListener('touchstart', (e)=>{e.preventDefault(); onDown();}, {passive:false});
+  const guardedDown = (...a)=>{ if(isEditingControls()) return; onDown(...a); };
+  el.addEventListener('touchstart', (e)=>{e.preventDefault(); guardedDown();}, {passive:false});
   el.addEventListener('touchend', (e)=>{e.preventDefault(); if(onUp) onUp();}, {passive:false});
-  el.addEventListener('mousedown', onDown);
+  el.addEventListener('mousedown', guardedDown);
   window.addEventListener('mouseup', ()=>{ if(onUp) onUp(); });
 }
 bindHold('btn-punch', ()=>tryPunch());
 bindHold('btn-jump', ()=>tryJumpOrVault());
 bindHold('btn-interact', ()=>tryInteract());
 bindHold('btn-run', ()=>{ runHeld = !runHeld; document.getElementById('btn-run').classList.toggle('toggled', runHeld); });
+bindHold('btn-crouch', ()=>tryToggleCrouch());
 
 // controles de vehículo (móvil)
 let vehInput = {accel:false, brake:false, left:false, right:false};
@@ -1385,6 +1529,90 @@ bindVehBtn('veh-accel','accel'); bindVehBtn('veh-brake','brake');
 bindVehBtn('veh-left','left'); bindVehBtn('veh-right','right');
 document.getElementById('veh-exit').addEventListener('click', ()=>exitVehicle());
 document.getElementById('veh-exit').addEventListener('touchstart', (e)=>{e.preventDefault(); exitVehicle();}, {passive:false});
+
+// ============================================================
+// EDITAR CONTROLES — mover/agrandar botones táctiles a gusto del jugador
+// ============================================================
+const CONTROL_LAYOUT_KEY = 'nortown_control_layout_v1';
+function loadControlLayout(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY));
+    if(saved && typeof saved === 'object') return Object.assign({btnScale:1, joyScale:1, pos:null}, saved);
+  }catch(e){}
+  return {btnScale:1, joyScale:1, pos:null};
+}
+function saveControlLayout(){
+  try{ localStorage.setItem(CONTROL_LAYOUT_KEY, JSON.stringify(controlLayout)); }catch(e){}
+}
+function applyControlLayout(){
+  const ab = document.querySelector('.action-buttons');
+  ab.style.transform = `scale(${controlLayout.btnScale})`;
+  ab.style.transformOrigin = 'bottom right';
+  if(controlLayout.pos){
+    ab.style.left = controlLayout.pos.left; ab.style.top = controlLayout.pos.top;
+    ab.style.right = 'auto'; ab.style.bottom = 'auto';
+  } else {
+    ab.style.left = ''; ab.style.top = ''; ab.style.right = '16px'; ab.style.bottom = '16px';
+  }
+}
+let controlLayout = loadControlLayout();
+applyControlLayout();
+
+// arrastrar el grupo de botones de acción (solo mientras el modo edición está activo)
+const actionButtonsEl = document.querySelector('.action-buttons');
+let ctrlDrag = {active:false, offX:0, offY:0};
+actionButtonsEl.addEventListener('pointerdown', (e)=>{
+  if(!isEditingControls()) return;
+  ctrlDrag.active = true;
+  const rect = actionButtonsEl.getBoundingClientRect();
+  ctrlDrag.offX = e.clientX - rect.left;
+  ctrlDrag.offY = e.clientY - rect.top;
+  actionButtonsEl.style.right = 'auto'; actionButtonsEl.style.bottom = 'auto';
+  actionButtonsEl.setPointerCapture(e.pointerId);
+});
+actionButtonsEl.addEventListener('pointermove', (e)=>{
+  if(!ctrlDrag.active) return;
+  actionButtonsEl.style.left = (e.clientX - ctrlDrag.offX)+'px';
+  actionButtonsEl.style.top = (e.clientY - ctrlDrag.offY)+'px';
+});
+function endCtrlDrag(){
+  if(!ctrlDrag.active) return;
+  ctrlDrag.active = false;
+  const rect = actionButtonsEl.getBoundingClientRect();
+  controlLayout.pos = { left: rect.left+'px', top: rect.top+'px' };
+}
+actionButtonsEl.addEventListener('pointerup', endCtrlDrag);
+actionButtonsEl.addEventListener('pointercancel', endCtrlDrag);
+
+document.getElementById('btn-edit-controls').addEventListener('click', ()=>{
+  const editing = document.body.classList.toggle('control-edit-mode');
+  document.getElementById('control-edit-panel').classList.toggle('active', editing);
+  if(editing){
+    document.getElementById('cep-scale-buttons').value = controlLayout.btnScale;
+    document.getElementById('cep-scale-joy').value = controlLayout.joyScale;
+  } else {
+    saveControlLayout();
+  }
+});
+document.getElementById('cep-scale-buttons').addEventListener('input', (e)=>{
+  controlLayout.btnScale = parseFloat(e.target.value);
+  applyControlLayout();
+});
+document.getElementById('cep-scale-joy').addEventListener('input', (e)=>{
+  controlLayout.joyScale = parseFloat(e.target.value);
+});
+document.getElementById('cep-reset').addEventListener('click', ()=>{
+  controlLayout = {btnScale:1, joyScale:1, pos:null};
+  applyControlLayout();
+  saveControlLayout();
+  document.getElementById('cep-scale-buttons').value = 1;
+  document.getElementById('cep-scale-joy').value = 1;
+});
+document.getElementById('cep-close').addEventListener('click', ()=>{
+  document.body.classList.remove('control-edit-mode');
+  document.getElementById('control-edit-panel').classList.remove('active');
+  saveControlLayout();
+});
 
 // ============================================================
 // ACCIONES DEL JUGADOR
@@ -1458,6 +1686,15 @@ function performVault(ledge){
   showToast('¡Agarrado!');
 }
 
+function tryToggleCrouch(){
+  if(!G.playing || player.dead || player.inVehicle || player.vaulting || isUiPanelOpen()) return;
+  if(player.staggered || player.launched || player.groggy) return;
+  player.crouching = !player.crouching;
+  const btn = document.getElementById('btn-crouch');
+  if(btn) btn.classList.toggle('toggled', player.crouching);
+  if(player.crouching) runHeld = false, document.getElementById('btn-run').classList.remove('toggled');
+}
+
 function tryInteract(){
   if(!G.playing || isUiPanelOpen()) return;
   if(player.staggered || player.launched || player.groggy) return;
@@ -1472,6 +1709,8 @@ function tryInteract(){
 function enterVehicle(v){
   player.inVehicle = v;
   v.occupied = true;
+  player.crouching = false;
+  document.getElementById('btn-crouch').classList.remove('toggled');
   player.animState = 'drive';
   G.playerChar.visible = false;
   showToast('Has entrado al vehículo');
@@ -1495,6 +1734,7 @@ function exitVehicle(){
 const GRAVITY = -18;
 const WALK_SPEED = 3.0;
 const RUN_SPEED = 6.2;
+const CROUCH_SPEED = 1.4;
 const playerRadius = 0.32;
 const GROGGY_DURATION = 2.0;   // segundos incapacitado tras aterrizar de un atropello
 const HIT_COOLDOWN_AFTER_LAND = 0.8;
@@ -1566,6 +1806,16 @@ function updatePlayer(dt){
   }
   if(player.vaulting) return;
 
+  // panel abierto (mochila, vestidor o editar controles) -> el personaje no se mueve
+  if(isUiPanelOpen()){
+    player.animState = 'idle';
+    // aun así se aplica la gravedad para no quedar flotando si se abrió un panel en el aire
+    player.vel.y += GRAVITY*dt;
+    player.pos.y += player.vel.y*dt;
+    if(player.pos.y <= 0){ player.pos.y = 0; player.vel.y = 0; player.grounded = true; }
+    return;
+  }
+
   let moveX = 0, moveZ = 0;
   if(keys['KeyW']) moveZ -= 1;
   if(keys['KeyS']) moveZ += 1;
@@ -1574,7 +1824,7 @@ function updatePlayer(dt){
   if(joystick.active){ moveX = joystick.dx; moveZ = joystick.dy; }
 
   const hasInput = Math.abs(moveX) > 0.05 || Math.abs(moveZ) > 0.05;
-  player.running = (keys['ShiftLeft'] || keys['ShiftRight'] || runHeld) && hasInput && player.stamina > 2;
+  player.running = !player.crouching && (keys['ShiftLeft'] || keys['ShiftRight'] || runHeld) && hasInput && player.stamina > 2;
 
   if(hasInput){
     const camForward = new THREE.Vector3(Math.sin(camState.yaw), 0, Math.cos(camState.yaw));
@@ -1584,11 +1834,11 @@ function updatePlayer(dt){
       .addScaledVector(camRight, moveX);
     dir.normalize();
     player.yaw = Math.atan2(dir.x, dir.z);
-    const speed = player.running ? RUN_SPEED : WALK_SPEED;
+    const speed = player.crouching ? CROUCH_SPEED : (player.running ? RUN_SPEED : WALK_SPEED);
     player.pos.addScaledVector(dir, speed*dt);
-    player.animState = player.running ? 'run' : 'walk';
+    player.animState = player.crouching ? 'crouchWalk' : (player.running ? 'run' : 'walk');
   } else if(player.grounded) {
-    player.animState = 'idle';
+    player.animState = player.crouching ? 'crouch' : 'idle';
   }
 
   if(player.running) player.stamina = Math.max(0, player.stamina - dt*22);
@@ -1738,16 +1988,23 @@ function updateCamera(dt){
 // NPCs Y TRÁFICO (locales, no sincronizados por red)
 // ============================================================
 function updateNPCs(dt){
+  // Todo lo "ambiental" (semáforos, autos de tráfico, ruta de peatones) se
+  // calcula a partir de syncedNow() -> misma hora para todos los jugadores
+  // conectados, así que se ve exactamente igual en las dos pantallas.
+  const tSec = syncedNow();
+
   for(const t of trafficLights){
-    t.timer -= dt;
-    if(t.timer <= 0){
-      t.state = (t.state+1)%3;
-      t.timer = t.state===1 ? 1.5 : 4.5;
+    const state = trafficLightStateAt(t.phase, tSec);
+    if(state !== t.state){
+      t.state = state;
       t.lights.forEach((l,i)=> l.material.emissiveIntensity = (i===t.state)?1.0:0.05);
     }
   }
 
   for(const n of npcPeople){
+    // Un peatón atropellado sale volando: esto es una reacción LOCAL a un
+    // impacto que solo tu cliente ve (no viaja por el servidor), así que
+    // mientras dura no sigue la ruta sincronizada.
     if(n.launched){
       n.launchVel.y += GRAVITY*dt;
       n.group.position.addScaledVector(n.launchVel, dt);
@@ -1761,7 +2018,7 @@ function updateNPCs(dt){
           n.launched = false;
           n.launchVel.set(0,0,0);
           n.group.userData.animState = 'idle';
-          n.recoverTimer = 1.6; // se queda tirado unos segundos antes de reanudar su ruta
+          n.recoverTimer = 1.6; // se queda tirado unos segundos antes de volver a su ruta
         }
       }
       animateCharacter(n.group, dt);
@@ -1772,23 +2029,29 @@ function updateNPCs(dt){
       animateCharacter(n.group, dt);
       continue;
     }
-    const target = n.waypoints[n.target];
-    const dir = target.clone().sub(n.group.position); dir.y=0;
-    const dist = dir.length();
-    if(dist < 0.5){ n.target = (n.target+1)%n.waypoints.length; }
-    else {
-      dir.normalize();
-      n.group.position.addScaledVector(dir, n.speed*dt);
-      n.group.rotation.y = Math.atan2(dir.x, dir.z);
-      n.group.userData.animState = 'walk';
+    // ruta de ida y vuelta calculada directamente por hora sincronizada
+    if(n.pathLen > 0.001){
+      const period = n.period;
+      let tc = ((tSec + n.phase) % period + period) % period;
+      const distAlong = tc * n.speed;
+      const goingForward = distAlong <= n.pathLen;
+      const d = goingForward ? distAlong : (2*n.pathLen - distAlong);
+      const frac = THREE.MathUtils.clamp(d / n.pathLen, 0, 1);
+      const prevPos = n.group.position.clone();
+      n.group.position.lerpVectors(n.waypoints[0], n.waypoints[1], frac);
+      const dir = n.group.position.clone().sub(prevPos); dir.y = 0;
+      if(dir.lengthSq() > 0.0001){
+        n.group.rotation.y = Math.atan2(dir.x, dir.z);
+        n.group.userData.animState = 'walk';
+      } else {
+        n.group.userData.animState = 'idle';
+      }
     }
-    if(dist < 0.5) n.group.userData.animState = 'idle';
     animateCharacter(n.group, dt);
   }
 
   for(const c of npcCars){
-    c.t += c.speed*dt;
-    if(c.t > 1) c.t = 0;
+    c.t = (tSec * c.speed + c.phase) % 1;
     c.group.position.lerpVectors(c.p1, c.p2, c.t);
     c.group.lookAt(c.p2);
   }
@@ -1880,6 +2143,7 @@ function handleServerMessage(msg){
       G.myId = msg.id;
       player.pos.set(msg.spawn.x, msg.spawn.y, msg.spawn.z);
       updateOnlineCount(msg.playersOnline);
+      if(typeof msg.serverTime === 'number') G.clockOffset = msg.serverTime - Date.now();
       break;
     }
     case 'existingPlayers': {
