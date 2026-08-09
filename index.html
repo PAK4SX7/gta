@@ -225,6 +225,16 @@ input{font-family:inherit;}
 .hud-top-btns button{background:rgba(20,24,32,.75);border:2px solid rgba(255,204,0,.5);color:#fff;
   padding:8px 14px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:1px;white-space:nowrap;}
 .hud-top-btns button:active{background:rgba(255,204,0,.35);}
+#chat-panel{position:fixed;left:0;right:0;bottom:0;z-index:200000;display:none;
+  padding:12px;background:rgba(10,12,18,.9);pointer-events:auto;}
+#chat-panel.active{display:block;}
+.chat-box{display:flex;gap:8px;max-width:600px;margin:0 auto;}
+#chat-input{flex:1;padding:12px 14px;border-radius:10px;border:2px solid rgba(255,204,0,.5);
+  background:rgba(255,255,255,.08);color:#fff;font-size:15px;outline:none;}
+#chat-send{background:rgba(255,204,0,.35);border:2px solid rgba(255,204,0,.6);color:#fff;
+  border-radius:10px;padding:0 16px;font-weight:700;}
+#chat-close{background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);color:#fff;
+  border-radius:10px;padding:0 14px;}
 #btn-open-menu{border-color:rgba(255,255,255,.3) !important;}
 #btn-edit-controls{border-color:var(--accent2) !important;}
 
@@ -373,9 +383,19 @@ body.control-edit-mode #joystick-zone{background:rgba(0,229,255,.06); outline:2p
     <button id="btn-open-menu">☰ MENÚ</button>
     <button id="btn-open-inventory">🎒 MOCHILA</button>
     <button id="btn-edit-controls">⚙ CONTROLES</button>
+    <button id="btn-open-chat">💬 CHAT</button>
   </div>
 </div>
 <div id="damage-flash"></div>
+
+<!-- ============ CHAT GLOBAL ============ -->
+<div id="chat-panel">
+  <div class="chat-box">
+    <input type="text" id="chat-input" maxlength="120" placeholder="Escribe un mensaje..." autocomplete="off">
+    <button id="chat-send">ENVIAR</button>
+    <button id="chat-close">✕</button>
+  </div>
+</div>
 
 <!-- ============ MOCHILA / INVENTARIO (en juego) ============ -->
 <div id="inventory-panel">
@@ -654,6 +674,93 @@ function makeNameSprite(text){
   return sprite;
 }
 
+// ============================================================
+// BURBUJA DE CHAT SOBRE LA CABEZA
+// ============================================================
+function wrapChatText(text, maxCharsPerLine){
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for(const w of words){
+    if((cur + ' ' + w).trim().length > maxCharsPerLine){
+      if(cur) lines.push(cur.trim());
+      cur = w;
+    } else {
+      cur = (cur + ' ' + w).trim();
+    }
+  }
+  if(cur) lines.push(cur.trim());
+  return lines.slice(0,3);
+}
+function makeChatBubbleSprite(text){
+  const lines = wrapChatText(text, 22);
+  const canvas = document.createElement('canvas');
+  const lineH = 34;
+  canvas.width = 320; canvas.height = Math.max(64, lines.length*lineH + 26);
+  const ctx = canvas.getContext('2d');
+  ctx.font = '28px Arial';
+  ctx.textAlign = 'center';
+  // globo redondeado
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  const r = 16;
+  const w = canvas.width, h = canvas.height - 14;
+  ctx.beginPath();
+  ctx.moveTo(r,0); ctx.lineTo(w-r,0); ctx.quadraticCurveTo(w,0,w,r);
+  ctx.lineTo(w,h-r); ctx.quadraticCurveTo(w,h,w-r,h);
+  ctx.lineTo(w/2+10,h); ctx.lineTo(w/2,h+14); ctx.lineTo(w/2-10,h);
+  ctx.lineTo(r,h); ctx.quadraticCurveTo(0,h,0,h-r);
+  ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  lines.forEach((l,i)=> ctx.fillText(l, w/2, 32 + i*lineH));
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true});
+  const sprite = new THREE.Sprite(mat);
+  const scaleW = 1.8, scaleH = scaleW * (canvas.height/canvas.width);
+  sprite.scale.set(scaleW, scaleH, 1);
+  sprite.position.y = 2.9;
+  sprite.renderOrder = 1000;
+  return sprite;
+}
+function showChatBubble(charGroup, text){
+  if(!charGroup || !text) return;
+  if(charGroup.userData.chatBubble){
+    charGroup.remove(charGroup.userData.chatBubble);
+    clearTimeout(charGroup.userData.chatBubbleTimer);
+  }
+  const bubble = makeChatBubbleSprite(text);
+  charGroup.add(bubble);
+  charGroup.userData.chatBubble = bubble;
+  charGroup.userData.chatBubbleTimer = setTimeout(()=>{
+    charGroup.remove(bubble);
+    if(charGroup.userData.chatBubble === bubble) charGroup.userData.chatBubble = null;
+  }, 4500);
+}
+function initChatUI(){
+  if(G.chatUIInit) return;
+  G.chatUIInit = true;
+  const panel = document.getElementById('chat-panel');
+  const input = document.getElementById('chat-input');
+  const openBtn = document.getElementById('btn-open-chat');
+  const sendBtn = document.getElementById('chat-send');
+  const closeBtn = document.getElementById('chat-close');
+  const open = ()=>{ panel.classList.add('active'); document.body.classList.add('chat-open'); input.value=''; input.focus(); };
+  const close = ()=>{ panel.classList.remove('active'); document.body.classList.remove('chat-open'); input.blur(); };
+  const send = ()=>{
+    const text = input.value.trim();
+    if(text){
+      sendWS({type:'chat', text});
+      showChatBubble(G.playerChar, text);
+    }
+    close();
+  };
+  openBtn.addEventListener('click', open);
+  openBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); open(); }, {passive:false});
+  closeBtn.addEventListener('click', close);
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') send(); if(e.key==='Escape') close(); });
+}
+
 function createCharacter(appearance, name){
   const root = new THREE.Group();
   const rig = new THREE.Group(); // usado para vault/climb offsets
@@ -772,6 +879,13 @@ function animateCharacter(charGroup, dt){
   charGroup.userData.animTime += dt;
   const t = charGroup.userData.animTime;
 
+  // detectar cuándo entramos a este estado (para animaciones con fases, como el aturdido)
+  if(charGroup.userData.prevAnimState !== state){
+    charGroup.userData.prevAnimState = state;
+    charGroup.userData.stateEnterTime = t;
+  }
+  const stateT = t - (charGroup.userData.stateEnterTime || 0);
+
   // reset suave hacia pose base
   const lerpAmt = 1 - Math.pow(0.001, dt);
 
@@ -850,13 +964,32 @@ function animateCharacter(charGroup, dt){
       return;
     }
     case 'stagger': {
-      // aturdido tras recibir varios golpes seguidos — se tambalea, no puede actuar
-      const sway = Math.sin(t*4.5)*0.14;
-      targetTorsoRotX = -0.18 + Math.sin(t*3)*0.06;
-      armLRotX = 0.35 + sway; armRRotX = 0.35 - sway;
-      armLRotZ = 0.18; armRRotZ = -0.18;
-      bob = Math.sin(t*3)*0.025;
-      break;
+      // aturdido tras recibir varios golpes seguidos: se cae, queda tirado, y se levanta
+      const FALL_DUR = 0.4, LIE_DUR = 1.35, RISE_DUR = 0.45;
+      const fallEnd = FALL_DUR, lieEnd = FALL_DUR+LIE_DUR, riseEnd = FALL_DUR+LIE_DUR+RISE_DUR;
+      let lieAmount;
+      if(stateT < fallEnd){
+        lieAmount = THREE.MathUtils.clamp(stateT/FALL_DUR, 0, 1);
+      } else if(stateT < lieEnd){
+        lieAmount = 1;
+      } else if(stateT < riseEnd){
+        lieAmount = 1 - THREE.MathUtils.clamp((stateT-lieEnd)/RISE_DUR, 0, 1);
+      } else {
+        lieAmount = 0;
+      }
+      const eased = lieAmount*lieAmount*(3 - 2*lieAmount); // smoothstep
+      p.rig.rotation.x = THREE.MathUtils.lerp(p.rig.rotation.x, -Math.PI/2*eased, 0.3);
+      p.rig.position.y = THREE.MathUtils.lerp(p.rig.position.y, -0.32*eased, 0.3);
+      const twitch = (lieAmount > 0.9) ? Math.sin(t*3)*0.04*eased : 0;
+      p.rig.rotation.z = THREE.MathUtils.lerp(p.rig.rotation.z, twitch, 0.25);
+      p.torso.rotation.x = THREE.MathUtils.lerp(p.torso.rotation.x, 0, 0.25);
+      p.armL.rotation.x = THREE.MathUtils.lerp(p.armL.rotation.x, 0.3*(1-eased)+0.15*eased, 0.3);
+      p.armR.rotation.x = THREE.MathUtils.lerp(p.armR.rotation.x, 0.3*(1-eased)+0.15*eased, 0.3);
+      p.legL.rotation.x = THREE.MathUtils.lerp(p.legL.rotation.x, 0.1, 0.3);
+      p.legR.rotation.x = THREE.MathUtils.lerp(p.legR.rotation.x, 0.1, 0.3);
+      p.torso.position.y = THREE.MathUtils.lerp(p.torso.position.y, 0.95, 0.3);
+      p.nameSprite.visible = lieAmount < 0.9;
+      return;
     }
     case 'groggy': {
       // recién se levantó de un atropello — incapacitado unos segundos
@@ -1041,7 +1174,8 @@ document.getElementById('btn-inv-edit').addEventListener('click', ()=>{
 function isUiPanelOpen(){
   return vestidorPanel.classList.contains('active') ||
     document.getElementById('inventory-panel').classList.contains('active') ||
-    document.body.classList.contains('control-edit-mode');
+    document.body.classList.contains('control-edit-mode') ||
+    document.body.classList.contains('chat-open');
 }
 
 // ============================================================
@@ -1231,7 +1365,7 @@ function buildCity(){
         car.position.set(cx, 0, cz);
         car.rotation.y = (seed%2)? 0 : Math.PI/2;
         scene.add(car);
-        enterableVehicles.push({group:car, type:'car', occupied:false});
+        enterableVehicles.push({group:car, type:'car', occupied:false, id:enterableVehicles.length});
       }
 
       // farola en cada esquina de bloque
@@ -1439,6 +1573,7 @@ function enterWorld(){
   G.clock = new THREE.Clock();
   requestAnimationFrame(gameLoop);
   showToast('BIENVENIDO, ' + G.name);
+  initChatUI();
 }
 
 function returnToMenu(){
@@ -1772,9 +1907,11 @@ document.getElementById('cep-close').addEventListener('click', ()=>{
 let punchCooldown = 0;
 function tryPunch(){
   if(!G.playing || player.dead || player.inVehicle || player.vaulting || isUiPanelOpen()) return;
-  if(player.staggered || player.launched || player.groggy) return;
+  if(player.staggered || player.launched || player.groggy || player.punching) return;
   if(punchCooldown > 0) return;
   punchCooldown = 0.5;
+  player.punching = true;
+  player.punchTimer = 0.35;
   player.animState = 'punch';
   triggerPunch(G.playerChar);
   sendWS({type:'attack'});
@@ -1938,6 +2075,15 @@ function updatePlayer(dt){
 
   if(player.invulnTimer > 0) player.invulnTimer -= dt;
 
+  // --- animación de golpe: bloquea que el movimiento pise el estado durante el swing ---
+  if(player.punching){
+    player.punchTimer -= dt;
+    player.animState = 'punch';
+    if(player.punchTimer <= 0) player.punching = false;
+    // el jugador puede seguir moviéndose mientras golpea, así que no hacemos return aquí,
+    // solo evitamos que hasInput reescriba animState más abajo
+  }
+
   // --- aturdido por combate: varios golpes seguidos lo dejan incapacitado ---
   if(player.staggered){
     player.staggerTimer -= dt;
@@ -1976,6 +2122,7 @@ function updatePlayer(dt){
     updateVehicleControl(player.inVehicle, dt);
     player.pos.copy(player.inVehicle.group.position);
     checkVehicleHitsPedestrians(player.inVehicle, dt);
+    checkVehicleHitsRemotePlayers(player.inVehicle, dt);
     return;
   }
   if(player.vaulting) return;
@@ -2003,7 +2150,7 @@ function updatePlayer(dt){
   if(hasInput){
     const viewYaw = camState.yaw + Math.PI; // dirección real hacia donde mira la cámara
     const camForward = new THREE.Vector3(Math.sin(viewYaw), 0, Math.cos(viewYaw));
-    const camRight = new THREE.Vector3(Math.sin(viewYaw+Math.PI/2), 0, Math.cos(viewYaw+Math.PI/2));
+    const camRight = new THREE.Vector3(-Math.sin(viewYaw+Math.PI/2), 0, -Math.cos(viewYaw+Math.PI/2));
     const dir = new THREE.Vector3()
       .addScaledVector(camForward, -moveZ)
       .addScaledVector(camRight, moveX);
@@ -2011,9 +2158,9 @@ function updatePlayer(dt){
     player.yaw = Math.atan2(dir.x, dir.z);
     const speed = player.crouching ? CROUCH_SPEED : (player.running ? RUN_SPEED : WALK_SPEED);
     player.pos.addScaledVector(dir, speed*dt);
-    player.animState = player.crouching ? 'crouchWalk' : (player.running ? 'run' : 'walk');
+    if(!player.punching) player.animState = player.crouching ? 'crouchWalk' : (player.running ? 'run' : 'walk');
   } else if(player.grounded) {
-    player.animState = player.crouching ? 'crouch' : 'idle';
+    if(!player.punching) player.animState = player.crouching ? 'crouch' : 'idle';
   }
 
   if(player.running) player.stamina = Math.max(0, player.stamina - dt*22);
@@ -2122,6 +2269,27 @@ function checkVehicleHitsPedestrians(v, dt){
       n.group.userData.animState = 'launched';
     }
   }
+}
+
+// Cuando manejamos NOSOTROS y atropellamos a otro jugador real, hay que
+// avisarle al servidor para que le aplique el golpe (esto sí es en red,
+// a diferencia de los NPCs que son solo reacción visual local).
+let lastVehiclePlayerHitAt = 0;
+function checkVehicleHitsRemotePlayers(v, dt){
+  const spd = Math.abs(v.speed || 0);
+  if(spd < 2.5) return;
+  const now = performance.now();
+  if(now - lastVehiclePlayerHitAt < 700) return;
+  G.remotePlayers.forEach((rp, id)=>{
+    if(rp.drivingVehicleId!=null) return; // no atropellas a alguien que también va en auto
+    const dx = rp.group.position.x - v.group.position.x;
+    const dz = rp.group.position.z - v.group.position.z;
+    if((dx*dx + dz*dz) < 2.4){
+      lastVehiclePlayerHitAt = now;
+      const dir = new THREE.Vector3(dx,0,dz).normalize();
+      sendWS({type:'vehicleHit', targetId:id, dirX:dir.x, dirZ:dir.z, speed:spd});
+    }
+  });
 }
 
 function updateVehicleControl(v, dt){
@@ -2342,11 +2510,18 @@ function handleServerMessage(msg){
           rp.targetRy = p.ry;
           rp.group.userData.animState = p.anim || 'idle';
           rp.hp = p.hp;
+          applyRemoteVehicleState(rp, p.vehicle);
         }
       });
       break;
     }
     case 'onlineCount': updateOnlineCount(msg.count); break;
+    case 'chat': {
+      if(msg.id === G.myId) break; // ya mostramos nuestra propia burbuja al enviar
+      const rp = G.remotePlayers.get(msg.id);
+      if(rp) showChatBubble(rp.group, msg.text);
+      break;
+    }
     case 'hit': {
       if(msg.targetId === G.myId){
         player.hp = msg.newHp;
@@ -2356,6 +2531,21 @@ function handleServerMessage(msg){
       } else {
         const rp = G.remotePlayers.get(msg.targetId);
         if(rp){ rp.hp = msg.newHp; triggerHit(rp.group); }
+      }
+      break;
+    }
+    case 'vehicleHit': {
+      const dir = new THREE.Vector3(msg.dirX||0, 0, msg.dirZ||0);
+      if(dir.lengthSq() < 0.0001) dir.set(0,0,1);
+      if(msg.targetId === G.myId){
+        player.hp = msg.newHp;
+        launchPlayerFromVehicle(dir, msg.speed || 5);
+      } else {
+        const rp = G.remotePlayers.get(msg.targetId);
+        if(rp){
+          rp.hp = msg.newHp;
+          rp.group.userData.animState = 'launched';
+        }
       }
       break;
     }
@@ -2399,11 +2589,48 @@ function addRemotePlayer(p){
   scene.add(group);
   G.remotePlayers.set(p.id, {
     group, target:new THREE.Vector3(p.x||0,p.y||0,p.z||0), targetRy:0, hp:p.hp!==undefined?p.hp:100,
+    drivingVehicleId: null,
   });
 }
 function removeRemotePlayer(id){
   const rp = G.remotePlayers.get(id);
-  if(rp){ scene.remove(rp.group); G.remotePlayers.delete(id); }
+  if(rp){
+    if(rp.drivingVehicleId!=null){
+      const v = enterableVehicles[rp.drivingVehicleId];
+      if(v) v.occupied = false;
+    }
+    scene.remove(rp.group);
+    G.remotePlayers.delete(id);
+  }
+}
+
+// Sincroniza qué auto está manejando un jugador remoto: mueve el auto a su
+// posición real y oculta el modelo del jugador (igual que hacemos con el nuestro).
+function applyRemoteVehicleState(rp, vehicleData){
+  const newId = (vehicleData && typeof vehicleData.id === 'number') ? vehicleData.id : null;
+  if(rp.drivingVehicleId!=null && rp.drivingVehicleId !== newId){
+    const prevV = enterableVehicles[rp.drivingVehicleId];
+    if(prevV) prevV.occupied = false;
+    rp.drivingVehicleId = null;
+  }
+  if(newId!=null){
+    const v = enterableVehicles[newId];
+    if(v){
+      v.occupied = true;
+      if(rp.drivingVehicleId !== newId){
+        // recién se subió a este auto: colócalo ahí de una, sin interpolar desde donde estaba parqueado
+        v.group.position.set(vehicleData.x, vehicleData.y, vehicleData.z);
+        v.group.rotation.y = vehicleData.ry || 0;
+      }
+      v.netTarget = v.netTarget || new THREE.Vector3();
+      v.netTarget.set(vehicleData.x, vehicleData.y, vehicleData.z);
+      v.netTargetRy = vehicleData.ry || 0;
+      rp.drivingVehicleId = newId;
+      rp.group.visible = false;
+      return;
+    }
+  }
+  rp.group.visible = true;
 }
 
 function updateOnlineCount(n){
@@ -2422,7 +2649,13 @@ function networkTick(dt){
     type:'update',
     x:player.pos.x, y:player.pos.y, z:player.pos.z, ry:player.yaw,
     anim:player.animState,
-    vehicle: player.inVehicle ? {type:'car'} : null,
+    vehicle: player.inVehicle ? {
+      id: player.inVehicle.id,
+      x: player.inVehicle.group.position.x,
+      y: player.inVehicle.group.position.y,
+      z: player.inVehicle.group.position.z,
+      ry: player.inVehicle.group.rotation.y,
+    } : null,
   });
 }
 
@@ -2443,14 +2676,25 @@ function gameLoop(){
 
   // interpolación de jugadores remotos + animación
   G.remotePlayers.forEach(rp=>{
-    rp.group.position.lerp(rp.target, 0.18);
-    if(rp.targetRy !== undefined){
-      let diff = rp.targetRy - rp.group.rotation.y;
-      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-      rp.group.rotation.y += diff*0.2;
+    if(rp.drivingVehicleId==null){
+      rp.group.position.lerp(rp.target, 0.18);
+      if(rp.targetRy !== undefined){
+        let diff = rp.targetRy - rp.group.rotation.y;
+        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+        rp.group.rotation.y += diff*0.2;
+      }
     }
     animateCharacter(rp.group, dt);
   });
+  // interpolación de autos manejados por otros jugadores
+  for(const v of enterableVehicles){
+    if(v.occupied && v.netTarget){
+      v.group.position.lerp(v.netTarget, 0.25);
+      let diff = v.netTargetRy - v.group.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      v.group.rotation.y += diff*0.25;
+    }
+  }
 
   // aplicar posición/rotación al modelo local
   if(!player.inVehicle){
