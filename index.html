@@ -160,8 +160,8 @@ input{font-family:inherit;}
 #damage-flash{position:fixed;inset:0;pointer-events:none;background:rgba(255,0,0,0);z-index:6;transition:background .1s;}
 
 /* ---------- CONTROLES MÓVILES ---------- */
-#mobile-controls{position:fixed;inset:0;z-index:100;pointer-events:none;display:none;touch-action:none;}
-#mobile-controls.active{display:block;}
+#mobile-controls{position:fixed;inset:0;z-index:99999;pointer-events:none;display:none;touch-action:none;}
+#mobile-controls.active{display:block !important;pointer-events:auto !important;}
 #joystick-zone{position:absolute;left:0;bottom:0;width:48%;height:65%;pointer-events:auto;touch-action:none;}
 #joystick-base{position:absolute;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);
   border:2px solid rgba(255,255,255,.25);display:none;}
@@ -550,35 +550,38 @@ loadProfile();
 // CONTROLES TÁCTILES — ACTIVACIÓN ROBUSTA
 // ============================================================
 function deviceHasTouch(){
-  return ('ontouchstart' in window) ||
-    (navigator.maxTouchPoints || 0) > 0 ||
-    (navigator.msMaxTouchPoints || 0) > 0 ||
-    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
-    window.matchMedia('(pointer: coarse)').matches;
+  return true;
 }
 function forceMobileControls(){
   const controls = document.getElementById('mobile-controls');
-  if(!controls) return;
   const gameScreen = document.getElementById('game-screen');
-  const gameVisible = gameScreen && gameScreen.classList.contains('active');
-  if(gameVisible && deviceHasTouch()) controls.classList.add('active');
-  else if(!gameVisible) controls.classList.remove('active');
+  if(!controls || !gameScreen) return;
+
+  const gameVisible = gameScreen.classList.contains('active');
+  if(gameVisible){
+    controls.classList.add('active');
+    controls.style.display = 'block';
+    controls.style.pointerEvents = 'auto';
+    controls.style.zIndex = '99999';
+  }else{
+    controls.classList.remove('active');
+    controls.style.display = 'none';
+    controls.style.pointerEvents = 'none';
+  }
 }
 window.addEventListener('resize', forceMobileControls, {passive:true});
 window.addEventListener('orientationchange', ()=>setTimeout(forceMobileControls,150), {passive:true});
-setTimeout(forceMobileControls, 500);
+document.addEventListener('visibilitychange', ()=>setTimeout(forceMobileControls,50));
+setInterval(forceMobileControls, 500);
 
 // ============================================================
 // ORIENTACIÓN
 // ============================================================
 const orientationOverlay = document.getElementById('orientation-overlay');
 function checkOrientation(){
-  const isPortrait = window.innerHeight > window.innerWidth;
-  if(G.isMobile && isPortrait){
-    orientationOverlay.classList.add('show');
-  } else {
-    orientationOverlay.classList.remove('show');
-  }
+  // No bloquear la partida en vertical: los controles táctiles funcionan
+  // tanto en portrait como en landscape.
+  orientationOverlay.classList.remove('show');
 }
 window.addEventListener('resize', checkOrientation);
 window.addEventListener('orientationchange', checkOrientation);
@@ -1040,6 +1043,8 @@ function startLoading(){
         switchScreen('game-screen');
         document.getElementById('hud').classList.add('active');
         forceMobileControls();
+        document.getElementById('mobile-controls').style.display = 'block';
+        document.getElementById('mobile-controls').style.pointerEvents = 'auto';
         document.getElementById('hud-name').textContent = G.name;
         enterWorld();
         setTimeout(forceMobileControls, 100);
@@ -1501,6 +1506,43 @@ function endJoy(e){
 }
 joyZone.addEventListener('touchend', endJoy, {passive:true});
 joyZone.addEventListener('touchcancel', endJoy, {passive:true});
+
+// Pointer Events: Android/Chrome moderno puede entregar el toque como pointer.
+let joyPointerId = null;
+joyZone.addEventListener('pointerdown',(e)=>{
+  if(isEditingControls() || e.pointerType==='mouse') return;
+  e.preventDefault();
+  joyPointerId = e.pointerId;
+  joyOriginX=e.clientX; joyOriginY=e.clientY;
+  const s=controlLayout.joyScale||1, baseSize=100*s, knobSize=44*s;
+  joyBase.style.width=baseSize+'px'; joyBase.style.height=baseSize+'px';
+  joyKnob.style.width=knobSize+'px'; joyKnob.style.height=knobSize+'px';
+  joyBase.style.display='block';
+  joyBase.style.left=(e.clientX-baseSize/2)+'px';
+  joyBase.style.top=(e.clientY-baseSize/2)+'px';
+  joyKnob.style.left=((baseSize-knobSize)/2)+'px';
+  joyKnob.style.top=((baseSize-knobSize)/2)+'px';
+  joystick.active=true;
+  try{joyZone.setPointerCapture(e.pointerId);}catch(_){}
+},{passive:false});
+joyZone.addEventListener('pointermove',(e)=>{
+  if(e.pointerId!==joyPointerId) return;
+  e.preventDefault();
+  let dx=e.clientX-joyOriginX, dy=e.clientY-joyOriginY;
+  const s=controlLayout.joyScale||1, max=46*s;
+  const half=50*s, half2=22*s, len=Math.hypot(dx,dy);
+  if(len>max){dx=dx/len*max;dy=dy/len*max;}
+  joyKnob.style.left=(half-half2+dx)+'px';
+  joyKnob.style.top=(half-half2+dy)+'px';
+  joystick.dx=dx/max; joystick.dy=dy/max;
+},{passive:false});
+function endJoyPointer(e){
+  if(e.pointerId!==joyPointerId) return;
+  joystick.active=false; joystick.dx=0; joystick.dy=0;
+  joyBase.style.display='none'; joyPointerId=null;
+}
+joyZone.addEventListener('pointerup',endJoyPointer);
+joyZone.addEventListener('pointercancel',endJoyPointer);
 
 const camZone = document.getElementById('camera-zone');
 let camTouchId=null, camLastX=0, camLastY=0, camPointerId=null;
