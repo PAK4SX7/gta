@@ -1526,6 +1526,9 @@ const dragState = {active:false, lastX:0, lastY:0};
 // ============================================================
 const joystick = {active:false, dx:0, dy:0};
 let runHeld = false;
+function isEditingControls(){
+  return document.body.classList.contains('control-edit-mode');
+}
 const joyZone = document.getElementById('joystick-zone');
 const joyBase = document.getElementById('joystick-base');
 const joyKnob = document.getElementById('joystick-knob');
