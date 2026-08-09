@@ -578,7 +578,27 @@ let currentCatIndex = 0;
 
   function registerServiceWorker(){
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
+      navigator.serviceWorker.register('sw.js').then((reg)=>{
+        // revisa cada 60s si hay una versión nueva del sw.js en el servidor
+        setInterval(()=>{ reg.update().catch(()=>{}); }, 60000);
+      }).catch(()=>{});
+
+      // el nuevo Service Worker ya tomó el control -> hay contenido actualizado
+      navigator.serviceWorker.addEventListener('message', (event)=>{
+        if(event.data && event.data.type === 'SW_UPDATED') handleContentUpdated();
+      });
+    }
+  }
+
+  let updateHandled = false;
+  function handleContentUpdated(){
+    if(updateHandled) return;
+    updateHandled = true;
+    if(typeof showUpdateToastAndReload === 'function'){
+      showUpdateToastAndReload();
+    } else {
+      // el juego todavía no cargó (estamos en el menú) -> refresca directo
+      location.reload();
     }
   }
 })();
@@ -1616,6 +1636,19 @@ function showToast(text){
   msg.classList.add('show');
   setTimeout(()=>{ if(msg.textContent===text) msg.classList.remove('show'); }, 2200);
 }
+
+// ============================================================
+// ACTUALIZACIÓN AUTOMÁTICA DE CONTENIDO (Service Worker)
+// ============================================================
+window.showUpdateToastAndReload = function(){
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;'
+    +'align-items:center;justify-content:center;background:rgba(0,0,0,.72);'
+    +'color:#fff;font:bold 20px Arial;text-align:center;padding:20px;';
+  banner.innerHTML = '<div>✅ Contenido actualizado<br><span style="font-weight:400;font-size:15px;opacity:.85;">Volviendo al menú...</span></div>';
+  document.body.appendChild(banner);
+  setTimeout(()=>{ location.reload(); }, 1800);
+};
 
 // ============================================================
 // ENTRADA — TECLADO (PC)
