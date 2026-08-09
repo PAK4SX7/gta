@@ -1,6 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script>
+// ---------- DEBUG OVERLAY (temporal, para ver errores en el celular) ----------
+(function(){
+  var box = null;
+  function ensureBox(){
+    if(box) return box;
+    box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;'
+      +'background:rgba(120,0,0,.95);color:#fff;font:11px/1.4 monospace;padding:10px;'
+      +'z-index:2147483647;white-space:pre-wrap;border-top:3px solid #ff0;';
+    document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(box); });
+    if(document.body) document.body.appendChild(box);
+    return box;
+  }
+  function log(msg){
+    var b = ensureBox();
+    var line = document.createElement('div');
+    line.textContent = msg;
+    line.style.borderBottom = '1px solid rgba(255,255,255,.2)';
+    line.style.padding = '3px 0';
+    b.appendChild(line);
+  }
+  window.addEventListener('error', function(e){
+    log('ERROR: ' + e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno + ':' + e.colno);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    log('PROMISE REJECTED: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+  window.__debugLog = log;
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v3">
@@ -1072,7 +1103,21 @@ function startLoading(){
 // MUNDO 3D PRINCIPAL
 // ============================================================
 const gameCanvas = document.getElementById('game-canvas');
-const renderer = new THREE.WebGLRenderer({canvas:gameCanvas, antialias:true});
+let renderer;
+try{
+  renderer = new THREE.WebGLRenderer({canvas:gameCanvas, antialias:true, powerPreference:'default', failIfMajorPerformanceCaveat:false});
+}catch(err){
+  if(window.__debugLog) window.__debugLog('NO SE PUDO CREAR WEBGLRENDERER: ' + err.message);
+  try{ renderer = new THREE.WebGLRenderer({canvas:gameCanvas, antialias:false}); }
+  catch(err2){ if(window.__debugLog) window.__debugLog('WEBGL NO SOPORTADO EN ESTE NAVEGADOR: ' + err2.message); }
+}
+gameCanvas.addEventListener('webglcontextlost', function(e){
+  e.preventDefault();
+  if(window.__debugLog) window.__debugLog('CONTEXTO WEBGL PERDIDO (memoria/GPU). Intenta cerrar otras apps o recargar.');
+});
+gameCanvas.addEventListener('webglcontextrestored', function(){
+  if(window.__debugLog) window.__debugLog('Contexto WebGL restaurado.');
+});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
