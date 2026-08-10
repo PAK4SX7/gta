@@ -30,11 +30,31 @@
     log('PROMISE REJECTED: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
   });
   window.__debugLog = log;
+
+  // ---------- DIAGNÓSTICO TEMPORAL: qué elemento recibe el toque arriba ----------
+  // Solo registra toques en el tercio superior de la pantalla (donde viven los
+  // botones MENÚ/MOCHILA/CONTROLES/CHAT) para no llenar el panel de ruido.
+  function reportTouch(x, y, kind){
+    if(y > 170) return;
+    var el = document.elementFromPoint(x, y);
+    if(!el){ log('TOQUE('+kind+') en ('+Math.round(x)+','+Math.round(y)+') -> nada (elementFromPoint null)'); return; }
+    var desc = el.tagName.toLowerCase();
+    if(el.id) desc += '#' + el.id;
+    if(el.className && typeof el.className === 'string' && el.className.trim()) desc += '.' + el.className.trim().split(/\s+/).join('.');
+    log('TOQUE('+kind+') en ('+Math.round(x)+','+Math.round(y)+') -> ' + desc);
+  }
+  document.addEventListener('touchstart', function(e){
+    var t = e.touches[0];
+    if(t) reportTouch(t.clientX, t.clientY, 'touch');
+  }, {capture:true, passive:true});
+  document.addEventListener('mousedown', function(e){
+    reportTouch(e.clientX, e.clientY, 'mouse');
+  }, {capture:true});
 })();
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v3">
+<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v5-buttons-right">
   <title>NORTOWN — Mundo Abierto</title>
 
 <!-- ===== PWA: instalable como app ===== -->
@@ -202,7 +222,7 @@ input{font-family:inherit;}
   border:2px solid rgba(255,255,255,.25);display:none;}
 #joystick-knob{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(255,204,0,.55);
   border:2px solid rgba(255,204,0,.9);}
-#camera-zone{position:absolute;right:0;top:76px;width:52%;height:calc(75% - 76px);pointer-events:auto;touch-action:none;}
+#camera-zone{position:absolute;right:0;top:180px;width:52%;height:calc(75% - 180px);pointer-events:auto;touch-action:none;}
 
 .action-buttons{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;
   gap:10px;pointer-events:auto;}
@@ -223,11 +243,16 @@ input{font-family:inherit;}
   color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 #veh-exit{background:rgba(255,59,59,.35);border-color:rgba(255,59,59,.7);width:56px;height:56px;border-radius:50%;}
 
-/* ---------- BOTONES SUPERIORES (mochila / menú / editar controles) ---------- */
-.hud-top-btns{position:absolute;top:14px;left:50%;transform:translateX(-50%);pointer-events:auto;
-  display:flex;gap:8px;align-items:center;}
-.hud-top-btns button{background:rgba(20,24,32,.75);border:2px solid rgba(255,204,0,.5);color:#fff;
-  padding:8px 14px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:1px;white-space:nowrap;}
+/* ---------- BOTONES SUPERIORES (mochila / menú / editar controles / chat) ---------- */
+/* Los movimos del centro-arriba (pegados al borde, zona de gestos del sistema)
+   a un bloque compacto 2x2 del lado derecho, debajo del panel de conexión
+   (jugadores en línea / ping) y por encima de donde arranca camera-zone. */
+.hud-top-btns{position:absolute;top:92px;right:12px;left:auto;transform:none;
+  pointer-events:auto;touch-action:manipulation;z-index:2;
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;width:148px;}
+.hud-top-btns button{background:rgba(20,24,32,.8);border:2px solid rgba(255,204,0,.5);color:#fff;
+  padding:7px 6px;border-radius:9px;font-size:10px;font-weight:700;letter-spacing:.5px;white-space:nowrap;
+  touch-action:manipulation;text-align:center;}
 .hud-top-btns button:active{background:rgba(255,204,0,.35);}
 #chat-panel{position:fixed;left:0;right:0;bottom:0;z-index:200000;display:none;
   padding:12px;background:rgba(10,12,18,.9);pointer-events:auto;}
