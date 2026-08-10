@@ -2,27 +2,9 @@
 <html lang="es">
 <head>
 <script>
-// ---------- DEBUG OVERLAY (temporal, para ver errores en el celular) ----------
+// ---------- DEBUG LOGGER (silencioso, solo consola — ya no se dibuja en pantalla) ----------
 (function(){
-  var box = null;
-  function ensureBox(){
-    if(box) return box;
-    box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;'
-      +'background:rgba(120,0,0,.95);color:#fff;font:11px/1.4 monospace;padding:10px;'
-      +'z-index:2147483647;white-space:pre-wrap;border-top:3px solid #ff0;';
-    document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(box); });
-    if(document.body) document.body.appendChild(box);
-    return box;
-  }
-  function log(msg){
-    var b = ensureBox();
-    var line = document.createElement('div');
-    line.textContent = msg;
-    line.style.borderBottom = '1px solid rgba(255,255,255,.2)';
-    line.style.padding = '3px 0';
-    b.appendChild(line);
-  }
+  function log(msg){ console.error('[Nortown]', msg); }
   window.addEventListener('error', function(e){
     log('ERROR: ' + e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno + ':' + e.colno);
   });
@@ -30,46 +12,11 @@
     log('PROMISE REJECTED: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
   });
   window.__debugLog = log;
-
-  // ---------- DIAGNÓSTICO TEMPORAL: qué elemento recibe el toque arriba ----------
-  // Solo registra toques en el tercio superior de la pantalla (donde viven los
-  // botones MENÚ/MOCHILA/CONTROLES/CHAT) para no llenar el panel de ruido.
-  function reportTouch(x, y, kind){
-    if(y > 170) return;
-    var el = document.elementFromPoint(x, y);
-    if(!el){ log('TOQUE('+kind+') en ('+Math.round(x)+','+Math.round(y)+') -> nada (elementFromPoint null)'); return; }
-    var desc = el.tagName.toLowerCase();
-    if(el.id) desc += '#' + el.id;
-    if(el.className && typeof el.className === 'string' && el.className.trim()) desc += '.' + el.className.trim().split(/\s+/).join('.');
-    log('TOQUE('+kind+') en ('+Math.round(x)+','+Math.round(y)+') -> ' + desc);
-  }
-  document.addEventListener('touchstart', function(e){
-    var t = e.touches[0];
-    if(t) reportTouch(t.clientX, t.clientY, 'touch');
-  }, {capture:true, passive:true});
-  document.addEventListener('mousedown', function(e){
-    reportTouch(e.clientX, e.clientY, 'mouse');
-  }, {capture:true});
-
-  // Muestra qué versión del archivo está corriendo realmente (para descartar
-  // que el navegador/la app instalada esté sirviendo una copia vieja).
-  document.addEventListener('DOMContentLoaded', function(){
-    var meta = document.querySelector('meta[name="nortown-controls-version"]');
-    var ver = meta ? meta.getAttribute('content') : '(sin meta de versión)';
-    log('VERSIÓN CARGADA: ' + ver);
-
-    var tag = document.createElement('div');
-    tag.textContent = 'v:' + ver;
-    tag.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:2147483646;'
-      + 'background:rgba(0,0,0,.6);color:#7CFC9A;font:9px monospace;padding:2px 6px;'
-      + 'border-radius:4px;pointer-events:none;';
-    document.body.appendChild(tag);
-  });
 })();
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v7-version-tag-visible">
+<meta name="nortown-controls-version" content="2026-08-09-v8-collisions-shadows-nodebugbox">
   <title>NORTOWN — Mundo Abierto</title>
 
 <!-- ===== PWA: instalable como app ===== -->
@@ -837,6 +784,21 @@ function initChatUI(){
   input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') send(); if(e.key==='Escape') close(); });
 }
 
+// Textura de sombra tipo "blob" compartida por todos los personajes (jugador,
+// NPCs y jugadores remotos), para no crear un canvas nuevo por cada uno.
+const sharedShadowTexture = (function(){
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(64,64,0,64,64,64);
+  grad.addColorStop(0, 'rgba(0,0,0,0.55)');
+  grad.addColorStop(0.7, 'rgba(0,0,0,0.28)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+})();
+
 function createCharacter(appearance, name){
   const root = new THREE.Group();
   const rig = new THREE.Group(); // usado para vault/climb offsets
@@ -926,7 +888,17 @@ function createCharacter(appearance, name){
   const nameSprite = makeNameSprite(name || 'Jugador');
   root.add(nameSprite);
 
-  root.userData.parts = {rig, torso, head, armL, armR, legL, legR, nameSprite};
+  // sombra tipo "blob" en el piso, bajo los pies
+  const shadowMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.85, 0.85),
+    new THREE.MeshBasicMaterial({map: sharedShadowTexture, transparent: true, depthWrite: false, opacity: 0.85})
+  );
+  shadowMesh.rotation.x = -Math.PI / 2;
+  shadowMesh.position.y = 0.015;
+  shadowMesh.renderOrder = 1;
+  root.add(shadowMesh);
+
+  root.userData.parts = {rig, torso, head, armL, armR, legL, legR, nameSprite, shadowMesh};
   root.userData.animState = 'idle';
   root.userData.animTime = 0;
   root.userData.punchPulse = 0;
@@ -2177,8 +2149,12 @@ function resolveCollisions(nextPos){
 // Colisión simple tipo "círculo" para que el jugador no atraviese a otros
 // jugadores ni a los NPCs peatones (antes los traspasaba de largo).
 const CHAR_COLLIDE_DIST = 0.68;
+let lastBumpPlayerHitAt = 0;
+
 function resolveCharacterCollisions(pos){
-  G.remotePlayers.forEach((rp)=>{
+  const runningBump = player.running; // el jugador local viene corriendo
+
+  G.remotePlayers.forEach((rp, id)=>{
     if(!rp.group) return;
     const dx = pos.x - rp.group.position.x;
     const dz = pos.z - rp.group.position.z;
@@ -2188,8 +2164,20 @@ function resolveCharacterCollisions(pos){
       const push = (CHAR_COLLIDE_DIST - dist);
       pos.x += (dx/dist)*push;
       pos.z += (dz/dist)*push;
+
+      // Si venimos corriendo, además de empujar, tumbamos al otro jugador real
+      // (esto sí es en red: le avisamos al servidor para que se vea igual en su pantalla).
+      if(runningBump){
+        const now = performance.now();
+        if(now - lastBumpPlayerHitAt > 700){
+          lastBumpPlayerHitAt = now;
+          const dirOut = new THREE.Vector3(-dx, 0, -dz).normalize(); // hacia donde sale empujado
+          sendWS({type:'vehicleHit', targetId:id, dirX:dirOut.x, dirZ:dirOut.z, speed:4.5});
+        }
+      }
     }
   });
+
   for(const n of npcPeople){
     if(n.launched || n.recoverTimer > 0) continue; // no chocar con alguien ya volando/recuperándose
     const dx = pos.x - n.group.position.x;
@@ -2197,9 +2185,18 @@ function resolveCharacterCollisions(pos){
     const distSq = dx*dx + dz*dz;
     if(distSq < CHAR_COLLIDE_DIST*CHAR_COLLIDE_DIST && distSq > 0.000001){
       const dist = Math.sqrt(distSq);
-      const push = (CHAR_COLLIDE_DIST - dist);
-      pos.x += (dx/dist)*push;
-      pos.z += (dz/dist)*push;
+      if(runningBump){
+        // Empujón fuerte: el NPC cae como muñeco de trapo y se levanta solo a los segundos
+        const dirOut = new THREE.Vector3(-dx, 0, -dz).normalize();
+        n.launched = true;
+        n.launchBounces = 0;
+        n.launchVel = new THREE.Vector3(dirOut.x*3.2, 3.2, dirOut.z*3.2);
+        n.group.userData.animState = 'launched';
+      } else {
+        const push = (CHAR_COLLIDE_DIST - dist);
+        pos.x += (dx/dist)*push;
+        pos.z += (dz/dist)*push;
+      }
     }
   }
 }
