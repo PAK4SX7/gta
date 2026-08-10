@@ -54,7 +54,7 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v5-buttons-right">
+<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v6-fixed-inline-pointerevents">
   <title>NORTOWN — Mundo Abierto</title>
 
 <!-- ===== PWA: instalable como app ===== -->
@@ -673,7 +673,12 @@ function forceMobileControls(){
   if(gameVisible){
     controls.classList.add('active');
     controls.style.display = 'block';
-    controls.style.pointerEvents = 'auto';
+    // OJO: NO poner pointer-events:auto aquí. El contenedor completo cubre
+    // toda la pantalla (inset:0) — si captura los toques, se roba los clics
+    // de los botones de #hud (chat/menú/mochila/controles) que quedan debajo.
+    // Cada zona interactiva (joystick, cámara, botones de acción) ya tiene
+    // su propio pointer-events:auto individual, así que el contenedor se
+    // queda en 'none' (heredado del CSS) y deja pasar el resto de toques.
     controls.style.zIndex = '99999';
     controls.style.position = 'fixed';
     controls.style.inset = '0';
@@ -688,7 +693,6 @@ function forceMobileControls(){
   }else{
     controls.classList.remove('active');
     controls.style.display = 'none';
-    controls.style.pointerEvents = 'none';
   }
 }
 window.addEventListener('resize', forceMobileControls, {passive:true});
@@ -1281,7 +1285,6 @@ function startLoading(){
         document.getElementById('hud').classList.add('active');
         forceMobileControls();
         document.getElementById('mobile-controls').style.display = 'block';
-        document.getElementById('mobile-controls').style.pointerEvents = 'auto';
         document.getElementById('hud-name').textContent = G.name;
         enterWorld();
         setTimeout(forceMobileControls, 100);
