@@ -50,11 +50,26 @@
   document.addEventListener('mousedown', function(e){
     reportTouch(e.clientX, e.clientY, 'mouse');
   }, {capture:true});
+
+  // Muestra qué versión del archivo está corriendo realmente (para descartar
+  // que el navegador/la app instalada esté sirviendo una copia vieja).
+  document.addEventListener('DOMContentLoaded', function(){
+    var meta = document.querySelector('meta[name="nortown-controls-version"]');
+    var ver = meta ? meta.getAttribute('content') : '(sin meta de versión)';
+    log('VERSIÓN CARGADA: ' + ver);
+
+    var tag = document.createElement('div');
+    tag.textContent = 'v:' + ver;
+    tag.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:2147483646;'
+      + 'background:rgba(0,0,0,.6);color:#7CFC9A;font:9px monospace;padding:2px 6px;'
+      + 'border-radius:4px;pointer-events:none;';
+    document.body.appendChild(tag);
+  });
 })();
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v6-fixed-inline-pointerevents">
+<meta name="nortown-controls-version" content="2026-08-09-mobile-controls-v7-version-tag-visible">
   <title>NORTOWN — Mundo Abierto</title>
 
 <!-- ===== PWA: instalable como app ===== -->
